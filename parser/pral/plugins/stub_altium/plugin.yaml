@@ -1,0 +1,14 @@
+id: stub_altium
+vendor: Altium
+domains:
+  - electrical
+extensions:
+  - .schdoc
+  - .pcbdoc
+  - .prjpcb
+requires_sidecar: true
+output_capabilities:
+  - has_gerber_stack
+  - has_bom
+source_tools:
+  - Altium

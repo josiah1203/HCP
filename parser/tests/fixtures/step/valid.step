@@ -1,0 +1,14 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('HCP test cube'),'2;1');
+FILE_NAME('test.step','2026-05-25',('HCP'),(''),
+  'Open CASCADE STEP processor','','');
+ENDSEC;
+DATA;
+#1 = CARTESIAN_POINT('',(0.0,0.0,0.0));
+#2 = CARTESIAN_POINT('',(100.0,0.0,0.0));
+#3 = CARTESIAN_POINT('',(100.0,80.0,0.0));
+#4 = CARTESIAN_POINT('',(0.0,80.0,50.0));
+#5 = PRODUCT('assembly', 'test', '', ());
+ENDSEC;
+END-ISO-10303-21;

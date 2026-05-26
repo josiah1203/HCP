@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  HCP_PROVIDER: onprem-compose
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check api/ parser/ infra/pal/
+      - run: ruff format --check api/ parser/ infra/pal/
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test-pal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r infra/pal/requirements.txt -r infra/pal/requirements-dev.txt
+      - run: |
+          pytest infra/pal/tests/ -v --cov=infra.pal.providers --cov-report=term-missing \
+            --cov-fail-under=80
+
+  test-api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: hcp
+          POSTGRES_PASSWORD: hcp
+          POSTGRES_DB: hcp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hcp -d hcp_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgresql+psycopg2://hcp:hcp@localhost:5432/hcp_test
+      JWT_SECRET: test-secret
+      REDIS_URL: redis://localhost:6379/0
+      MINIO_ENDPOINT: http://localhost:9000
+      MINIO_ACCESS_KEY: hcp
+      MINIO_SECRET_KEY: hcpsecret
+      MINIO_BUCKET: hcp-local
+      MINIO_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Start MinIO
+        run: |
+          docker run -d --name hcp-minio-ci -p 9000:9000 \
+            -e MINIO_ROOT_USER=hcp -e MINIO_ROOT_PASSWORD=hcpsecret \
+            minio/minio server /data
+          docker run --rm --link hcp-minio-ci:minio minio/mc:latest \
+            /bin/sh -c "mc alias set local http://minio:9000 hcp hcpsecret && mc mb -p local/hcp-local || true"
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 2
+          done
+      - run: pip install -r api/requirements-dev.txt -r infra/pal/requirements.txt
+      - run: pytest api/tests/ -v --tb=short
+      - name: Stop MinIO
+        if: always()
+        run: docker rm -f hcp-minio-ci 2>/dev/null || true
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: [lint, secrets-scan]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Start integration stack
+        run: docker compose -f docker-compose.test.yml up -d --wait
+      - name: Run PAL integration tests
+        env:
+          MINIO_ENDPOINT: http://localhost:9002
+          MINIO_ACCESS_KEY: hcp
+          MINIO_SECRET_KEY: hcpsecret
+          MINIO_BUCKET: hcp-local
+          MINIO_REGION: us-east-1
+        run: |
+          pip install -r infra/pal/requirements.txt -r infra/pal/requirements-dev.txt
+          pytest infra/pal/tests/test_onprem_storage.py -v
+      - name: Run API tests against integration stack
+        env:
+          DATABASE_URL: postgresql+psycopg2://hcp:hcp@localhost:5433/hcp_test
+          REDIS_URL: redis://localhost:6380/0
+          JWT_SECRET: test-secret
+          MINIO_ENDPOINT: http://localhost:9002
+          MINIO_ACCESS_KEY: hcp
+          MINIO_SECRET_KEY: hcpsecret
+          MINIO_BUCKET: hcp-local
+        run: |
+          pip install -r api/requirements-dev.txt -r infra/pal/requirements.txt
+          pytest api/tests/ -v --tb=short
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, secrets-scan, test-pal, test-api, integration]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -f api/Dockerfile -t hcp-api:${{ github.sha }} .
+      - name: Build parser image
+        run: docker build -f parser/Dockerfile -t hcp-parser:${{ github.sha }} .

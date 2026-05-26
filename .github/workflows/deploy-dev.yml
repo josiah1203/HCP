@@ -1,0 +1,44 @@
+name: Deploy Dev
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+env:
+  HCP_ENV: dev
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build container images
+        run: |
+          docker build -f api/Dockerfile -t hcp-api:${IMAGE_TAG} .
+          docker build -f parser/Dockerfile -t hcp-parser:${IMAGE_TAG} .
+
+      # Wire registry push + Terraform apply when dev cloud/on-prem registry is provisioned.
+      - name: Push images (placeholder)
+        run: echo "Push hcp-api:${IMAGE_TAG} and hcp-parser:${IMAGE_TAG} to dev registry — configure in infra/envs/dev"
+
+      - name: Run database migrations (placeholder)
+        run: echo "alembic upgrade head against dev DATABASE_URL from SecretsProvider"
+
+      - name: Rolling deploy (placeholder)
+        run: |
+          echo "Deploy via Helm: infra/helm/hcp-platform (dev values)"
+          echo "Or docker compose on dev host — see infra/envs/dev"
+
+      - name: Smoke check (placeholder)
+        run: echo "curl -f https://dev.hcp.internal/health"

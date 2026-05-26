@@ -1,0 +1,27 @@
+global:
+  namespace: hcp
+  environment: dev
+
+hcp-api:
+  replicaCount: 1
+  env:
+    HCP_PROVIDER: onprem
+    HCP_ENV: dev
+
+# External charts (install separately or add as dependencies in prod):
+# - Bitnami PostgreSQL / Redis
+# - MinIO operator or standalone MinIO
+# - HashiCorp Vault (optional)
+
+postgres:
+  enabled: true
+  host: postgres.hcp.svc.cluster.local
+
+minio:
+  enabled: true
+  endpoint: http://minio.hcp.svc.cluster.local:9000
+  bucket: hcp-local
+
+redis:
+  enabled: true
+  url: redis://redis.hcp.svc.cluster.local:6379/0

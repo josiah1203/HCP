@@ -1,0 +1,14 @@
+---
+description: V2 parallel subagents — worktrees, per-workstream make verify, AGENTS.md
+globs: AGENTS.md,docs/V2_PARALLEL_WORKSTREAMS.md,scripts/v2-worktree.sh,Makefile
+alwaysApply: false
+---
+
+# HCP V2 parallel agents
+
+When building V2 across multiple subagents:
+
+1. Create a worktree per workstream: `./scripts/v2-worktree.sh create <api|parser|graph|pal|infra|frontend>`
+2. Each agent runs only its `make v2-verify-<id>` (see `AGENTS.md`).
+3. Coordinator may use `make v2-verify-parallel` on one clone; do not run `test-integration` concurrently on the same host.
+4. Route implementation to role subagents (`hcp-backend`, `hcp-parser`, etc.) per owned paths.

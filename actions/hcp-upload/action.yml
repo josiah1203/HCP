@@ -1,0 +1,29 @@
+name: 'Upload to HCP'
+description: 'Upload hardware artifacts to Hardware Cloud Platform on release'
+branding:
+  icon: upload
+  color: blue
+inputs:
+  api_key:
+    description: 'HCP API key'
+    required: true
+  project_id:
+    description: 'HCP Project ID'
+    required: true
+  files:
+    description: 'Glob pattern for files to upload'
+    default: 'build/**/*'
+  wait_for_parse:
+    description: 'Wait for parse to complete'
+    default: 'true'
+  api_url:
+    description: 'HCP API base URL'
+    default: 'https://api.hcp.io'
+outputs:
+  object_ids:
+    description: 'Comma-separated uploaded object IDs'
+  version_ids:
+    description: 'Comma-separated version IDs'
+runs:
+  using: node20
+  main: dist/index.js

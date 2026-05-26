@@ -1,0 +1,3 @@
+Reference,Quantity,Manufacturer,MPN,Description
+R1,1,Yageo,RC0402FR-0710KL,10k resistor
+"U1,U2",2,STMicroelectronics,STM32F405RGT6,ARM MCU

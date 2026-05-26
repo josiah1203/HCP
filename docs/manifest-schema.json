@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hcp.dev/schemas/manifest/1.0",
+  "title": "HCP Release Bundle Manifest",
+  "type": "object",
+  "required": ["schema_version", "artifacts"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "source_tool": {
+      "type": "string",
+      "description": "Vendor or tool that produced the bundle (e.g. SolidWorks, KiCad)."
+    },
+    "source_tool_version": {
+      "type": "string"
+    },
+    "release": {
+      "type": "string",
+      "description": "Human-readable release label (e.g. Rev-C)."
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["path", "domain"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path inside the bundle archive."
+          },
+          "domain": {
+            "type": "string",
+            "enum": ["electrical", "mechanical", "manufacturing", "firmware", "document"]
+          },
+          "role": {
+            "type": "string",
+            "description": "Semantic role (assembly, fab, bom, etc.)."
+          },
+          "representation": {
+            "type": "string",
+            "enum": ["native", "interchange", "derived"]
+          },
+          "name": {
+            "type": "string",
+            "description": "Optional display name for the created object."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "type"],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "Artifact path from the artifacts list."
+          },
+          "to": {
+            "type": "string",
+            "description": "Artifact path from the artifacts list."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CONTAINS",
+              "USES",
+              "TARGETS",
+              "VALIDATES",
+              "SATISFIES",
+              "SOURCED_FROM",
+              "DERIVED_FROM",
+              "REPRESENTS"
+            ]
+          },
+          "metadata": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

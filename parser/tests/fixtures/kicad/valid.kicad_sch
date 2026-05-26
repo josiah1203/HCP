@@ -1,0 +1,26 @@
+(kicad_sch (version 20231120) (generator "eeschema")
+
+  (uuid 00000000-0000-0000-0000-000000000000)
+
+  (title_block
+    (title "HCP Schematic")
+    (rev "1")
+    (date "2026-05-25")
+  )
+
+  (symbol (lib_id "Device:R") (at 50 50 0) (unit 1)
+    (property "Reference" "R1" (at 50 45 0))
+    (property "Value" "10k" (at 50 55 0))
+    (property "MPN" "RC0402FR-0710KL" (at 50 60 0))
+  )
+
+  (symbol (lib_id "MCU_ST_STM32:STM32F405RGT6") (at 100 50 0) (unit 1)
+    (property "Reference" "U1" (at 100 45 0))
+    (property "Value" "STM32F405RGT6" (at 100 55 0))
+  )
+
+  (sheet (at 0 0) (size 50 50)
+    (uuid child-sheet-uuid)
+    (property "Sheetname" "Power" (at 0 0 0))
+  )
+)

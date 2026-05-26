@@ -1,0 +1,15 @@
+id: stub_autodesk
+vendor: Autodesk
+domains:
+  - mechanical
+extensions:
+  - .f3d
+  - .ipt
+  - .iam
+requires_sidecar: true
+output_capabilities:
+  - has_geometry
+source_tools:
+  - Fusion360
+  - Inventor
+  - Autodesk

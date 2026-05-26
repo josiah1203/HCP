@@ -1,0 +1,49 @@
+(kicad_pcb (version 20240108) (generator "pcbnew")
+
+  (general
+    (thickness 1.6)
+  )
+
+  (paper "A4")
+
+  (title_block
+    (title "HCP Test Board")
+    (date "2026-05-25")
+    (rev "A1")
+    (company "HCP Labs")
+  )
+
+  (layers
+    (0 "F.Cu" signal)
+    (1 "In1.Cu" signal)
+    (31 "B.Cu" signal)
+    (32 "B.Adhes" user "B.Adhes")
+    (34 "B.Paste" user)
+    (35 "B.SilkS" user "B.SilkS")
+    (36 "B.Mask" user)
+    (37 "F.Mask" user)
+    (38 "F.SilkS" user "F.SilkS")
+    (39 "F.Paste" user)
+    (40 "F.Adhes" user "F.Adhes")
+    (44 "Edge.Cuts" user)
+  )
+
+  (net 0 "")
+  (net 1 "GND")
+  (net 2 "+3V3")
+
+  (gr_rect (start 0 0) (end 80 60) (layer "Edge.Cuts") (width 0.1))
+
+  (footprint "Package_TO_SOT_SMD:TO-263-2" (layer "F.Cu") (tstamp 00000000-0000-0000-0000-000000000001)
+    (property "Reference" "U1" (at 0 0 0) (layer "F.SilkS") (uuid 00000000-0000-0000-0000-000000000010))
+    (property "Value" "STM32F405RGT6" (at 0 0 0) (layer "F.Fab") (uuid 00000000-0000-0000-0000-000000000011))
+    (property "MPN" "STM32F405RGT6" (at 0 0 0) (layer "F.Fab") (uuid 00000000-0000-0000-0000-000000000012))
+    (property "Manufacturer" "STMicroelectronics" (at 0 0 0) (layer "F.Fab") (uuid 00000000-0000-0000-0000-000000000013))
+    (property "Description" "ARM Cortex-M4 MCU" (at 0 0 0) (layer "F.Fab") (uuid 00000000-0000-0000-0000-000000000014))
+  )
+
+  (footprint "Device:R_Small" (layer "F.Cu") (tstamp 00000000-0000-0000-0000-000000000002)
+    (property "Reference" "R1" (at 0 0 0) (layer "F.SilkS") (uuid 00000000-0000-0000-0000-000000000020))
+    (property "Value" "10k" (at 0 0 0) (layer "F.Fab") (uuid 00000000-0000-0000-0000-000000000021))
+  )
+)

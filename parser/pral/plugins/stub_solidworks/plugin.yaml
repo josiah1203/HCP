@@ -1,0 +1,13 @@
+id: stub_solidworks
+vendor: Dassault Systèmes
+domains:
+  - mechanical
+extensions:
+  - .sldprt
+  - .sldasm
+  - .slddrw
+requires_sidecar: true
+output_capabilities:
+  - has_geometry
+source_tools:
+  - SolidWorks
