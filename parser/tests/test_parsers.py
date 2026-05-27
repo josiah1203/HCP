@@ -12,7 +12,7 @@ from parser.parsers.kicad_sch import KiCadSchematicParser
 from parser.parsers.pdf import PDFStore
 from parser.parsers.raw import RawStore
 from parser.parsers.step import StepParser
-from parser.registry import PARSER_REGISTRY, get_parser
+from parser.registry import PARSER_REGISTRY, get_parser, get_parser_for_extension
 from parser.tests.conftest import load_fixture
 
 OID = "00000000-0000-0000-0000-000000000001"
@@ -139,6 +139,22 @@ class TestGerber:
 
 
 class TestStep:
+    def test_timeout_degrades_without_raise(self, monkeypatch):
+        import parser.pral.core.step as step_mod
+
+        def slow_extract(*_args, **_kwargs):
+            import time
+
+            time.sleep(0.05)
+            return ({}, {}, [])
+
+        monkeypatch.setattr(step_mod, "_PARSE_TIMEOUT_SEC", 0.001)
+        monkeypatch.setattr(step_mod, "_extract_mechanical", slow_extract)
+        out = _parse(StepParser, "step/valid.step")
+        assert out.mechanical is not None
+        assert out.extracted_metadata.get("timeout") is True
+        assert any("timed out" in w for w in out.warnings)
+
     def test_valid_bbox(self):
         out = _parse(StepParser, "step/valid.step")
         bbox = out.mechanical["bounding_box_mm"]
@@ -194,6 +210,10 @@ class TestRawAndRegistry:
 
     def test_registry_has_catchall(self):
         assert PARSER_REGISTRY["*"] is RawStore
+
+    def test_get_parser_for_extension(self):
+        assert get_parser_for_extension(".kicad_pcb") is KiCadPCBParser
+        assert get_parser_for_extension(".unknown") is RawStore
 
     def test_pdf(self):
         out = PDFStore().parse_legacy(b"%PDF-1.4", "doc.pdf", OID, VID)
