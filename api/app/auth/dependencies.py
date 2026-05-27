@@ -124,6 +124,22 @@ def require_admin(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
     return user
 
 
+def require_events_publish(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    if (
+        can_admin(user.role)
+        or "events_publish" in user.api_key_scopes
+        or "admin" in user.api_key_scopes
+    ):
+        return user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "code": "forbidden",
+            "message": "events_publish scope or admin role required",
+        },
+    )
+
+
 def require_graph_query(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
     if (
         can_admin(user.role)

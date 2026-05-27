@@ -171,3 +171,240 @@ class GraphQueryRequest(BaseModel):
 class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
+
+
+class HosBranchCreate(BaseModel):
+    project_id: uuid.UUID
+    name: str
+    from_commit_id: uuid.UUID | None = None
+
+
+class HosBranchOut(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    project_id: uuid.UUID
+    name: str
+    head_commit_id: uuid.UUID | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class HosCommitCreate(BaseModel):
+    project_id: uuid.UUID
+    branch_id: uuid.UUID
+    message: str
+    tree: dict = Field(default_factory=dict)
+    parent_commit_ids: list[uuid.UUID] | None = None
+
+
+class HosCommitOut(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    project_id: uuid.UUID
+    branch_id: uuid.UUID | None = None
+    message: str
+    tree: dict
+    created_by: uuid.UUID
+    created_at: datetime
+    parent_commit_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class HosLogResponse(BaseModel):
+    data: list[HosCommitOut]
+
+
+class HosDiffRequest(BaseModel):
+    project_id: uuid.UUID
+    from_commit_id: uuid.UUID
+    to_commit_id: uuid.UUID
+
+
+class HosDiffEntry(BaseModel):
+    path: str
+    change_type: str
+    from_value: dict | None = None
+    to_value: dict | None = None
+
+
+class HosDiffResponse(BaseModel):
+    data: list[HosDiffEntry]
+
+
+class HosMergeRequest(BaseModel):
+    project_id: uuid.UUID
+    target_branch_id: uuid.UUID
+    source_branch_id: uuid.UUID
+
+
+class HosMergeOut(BaseModel):
+    merge_id: uuid.UUID
+    status: str
+    result_commit_id: uuid.UUID | None = None
+    conflict_count: int = 0
+
+
+class HosConflictOut(BaseModel):
+    id: uuid.UUID
+    path: str
+    base: dict | None = None
+    ours: dict | None = None
+    theirs: dict | None = None
+    resolution: dict | None = None
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
+class HosConflictListResponse(BaseModel):
+    data: list[HosConflictOut]
+
+
+class HosConflictResolveRequest(BaseModel):
+    resolution: dict
+
+
+class EventOut(BaseModel):
+    seq: int
+    event_id: uuid.UUID
+    org_id: uuid.UUID
+    project_id: uuid.UUID
+    event_type: str
+    dedupe_key: str
+    actor_id: uuid.UUID | None = None
+    source: str
+    metadata: dict | None = Field(default=None, alias="metadata_")
+    created_at: datetime
+
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+class EventPublishRequest(BaseModel):
+    project_id: uuid.UUID
+    event_type: str
+    dedupe_key: str
+    metadata: dict | None = None
+    actor_id: uuid.UUID | None = None
+    source: str | None = None
+    event_id: uuid.UUID | None = None
+
+
+class EventPublishResponse(BaseModel):
+    event: EventOut
+    deduped: bool = False
+
+
+class EventPollResponse(BaseModel):
+    data: list[EventOut]
+    next_cursor: int
+    has_more: bool = False
+
+
+class ComponentIdentityCreate(BaseModel):
+    project_id: uuid.UUID
+    canonical_key: str
+    source_tool: str | None = None
+    source_ref: str | None = None
+    metadata: dict | None = None
+
+
+class ComponentIdentityOut(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    project_id: uuid.UUID
+    canonical_key: str
+    source_tool: str | None = None
+    source_ref: str | None = None
+    metadata: dict | None = Field(default=None, alias="metadata_")
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+class ComponentIdentityListResponse(BaseModel):
+    data: list[ComponentIdentityOut]
+
+
+class SceneGraphNodeUpsert(BaseModel):
+    node_key: str
+    identity_id: uuid.UUID | None = None
+    transform: dict = Field(default_factory=dict)
+    metadata: dict | None = None
+
+
+class SceneGraphNodeOut(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    project_id: uuid.UUID
+    node_key: str
+    identity_id: uuid.UUID | None = None
+    transform: dict
+    metadata: dict | None = Field(default=None, alias="metadata_")
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+class SceneGraphNodeUpsertRequest(BaseModel):
+    project_id: uuid.UUID
+    nodes: list[SceneGraphNodeUpsert]
+
+
+class SceneGraphNodeUpsertResponse(BaseModel):
+    data: list[SceneGraphNodeOut]
+
+
+class SceneGraphEdgeUpsert(BaseModel):
+    edge_key: str
+    from_node_key: str
+    to_node_key: str
+    constraint_type: str
+    payload: dict | None = None
+
+
+class SceneGraphEdgeOut(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    project_id: uuid.UUID
+    edge_key: str
+    from_node_key: str
+    to_node_key: str
+    constraint_type: str
+    payload: dict | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SceneGraphEdgeUpsertRequest(BaseModel):
+    project_id: uuid.UUID
+    edges: list[SceneGraphEdgeUpsert]
+
+
+class SceneGraphEdgeUpsertResponse(BaseModel):
+    data: list[SceneGraphEdgeOut]
+
+
+class SceneGraphSnapshotCreateRequest(BaseModel):
+    project_id: uuid.UUID
+    commit_id: uuid.UUID
+
+
+class SceneGraphSnapshotOut(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    project_id: uuid.UUID
+    commit_id: uuid.UUID
+    snapshot: dict
+    created_by: uuid.UUID | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SceneGraphSnapshotResponse(BaseModel):
+    snapshot: SceneGraphSnapshotOut
+    deduped: bool = False

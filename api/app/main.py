@@ -6,7 +6,18 @@ from fastapi.responses import JSONResponse
 from app.middleware.errors import http_exception_handler
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_id import RequestIdMiddleware
-from app.routers import auth, bom, graph, health, objects, parts, projects, search
+from app.routers import (
+    auth,
+    bom,
+    events,
+    graph,
+    health,
+    hos_version_control,
+    objects,
+    parts,
+    projects,
+    search,
+)
 from app.routers.v2 import health_router as v2_health
 
 app = FastAPI(
@@ -22,6 +33,8 @@ app = FastAPI(
         {"name": "graph", "description": "PartGraph relationships"},
         {"name": "search", "description": "Full-text and faceted search"},
         {"name": "health", "description": "Health and readiness probes"},
+        {"name": "hos", "description": "HOS version control (branches/commits/merge)"},
+        {"name": "events", "description": "Event stream (poll/publish)"},
         {"name": "v2", "description": "HCP V2 API (breaking changes; stub endpoints)"},
     ],
 )
@@ -38,6 +51,8 @@ app.include_router(bom.router)
 app.include_router(parts.router)
 app.include_router(graph.router)
 app.include_router(search.router)
+app.include_router(hos_version_control.router)
+app.include_router(events.router)
 app.include_router(v2_health)
 
 

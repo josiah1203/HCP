@@ -35,6 +35,9 @@ def _sqlite_compat_metadata() -> None:
                 col.type = sa.JSON()
             if isinstance(col.type, postgresql.ARRAY):
                 col.type = sa.JSON()
+            # SQLite only autoincrements INTEGER PRIMARY KEY, not BIGINT.
+            if table.name == "event_log" and col.name == "seq":
+                col.type = sa.Integer()
 
 
 @pytest.fixture(scope="session")

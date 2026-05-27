@@ -15,7 +15,7 @@ logs:
 	docker compose logs -f api
 
 test:
-	cd api && pytest tests/ -v --tb=short
+	cd api && PYTHONPATH=.. pytest tests/ -v --tb=short
 	PYTHONPATH=. pytest infra/pal/tests/ -v --tb=short
 
 test-integration:
@@ -50,7 +50,7 @@ build-parser:
 	docker build -f parser/Dockerfile -t hcp-parser:local .
 
 test-api:
-	cd api && pytest tests/ -v --tb=short
+	cd api && PYTHONPATH=.. pytest tests/ -v --tb=short
 
 test-parser:
 	cd parser && PYTHONPATH=.. pytest tests/ -v --tb=short
@@ -78,6 +78,7 @@ v2-verify-pal: lint-pal test-pal
 
 v2-verify-graph:
 	@test -d graph/schema && test $$(ls -1 graph/schema/*.cypher 2>/dev/null | wc -l) -gt 0
+	cd api && PYTHONPATH=.. pytest tests/test_graph_linker.py tests/test_graph_service.py tests/test_graph_tasks.py tests/test_graph_neo4j.py tests/test_search_opensearch.py tests/test_scene_graph.py tests/test_events.py -v --tb=short
 
 v2-verify-infra: build-api build-parser
 

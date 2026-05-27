@@ -13,6 +13,11 @@ from app.auth.rbac import can_admin, role_at_least
 from app.config import settings
 from app.models.db import HardwareObject, Project, Version
 from app.services.audit import write_audit
+from app.services.event_taxonomy import (
+    EVENT_LIFECYCLE_TRANSITION,
+    EVENT_VERSION_CREATED,
+)
+from app.services.events import EventPublisher
 from app.services.lifecycle import validate_transition
 from app.services.object_types import (
     build_hcp_uri,
@@ -30,6 +35,7 @@ class ObjectService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self._storage: StorageProvider | None = None
+        self._events = EventPublisher(db)
 
     @property
     def storage(self):
@@ -179,6 +185,20 @@ class ObjectService:
                 "source_tool": source_tool,
             },
         )
+        self._events.publish(
+            org_id=user.org_id,
+            project_id=project_id,
+            event_type=EVENT_VERSION_CREATED,
+            dedupe_key=f"version:{version.id}:created",
+            actor_id=user.id,
+            source="api",
+            metadata={
+                "object_id": str(hw_object.id),
+                "version_id": str(version.id),
+                "version_num": version_num,
+                "deduplicated": deduplicated,
+            },
+        )
 
         enqueue_parse(
             str(version.id),
@@ -287,6 +307,25 @@ class ObjectService:
             actor_email=user.email,
             comment=comment,
         )
+        hw = self.get_object(version.object_id, user.org_id)
+        if hw is not None:
+            self._events.publish(
+                org_id=user.org_id,
+                project_id=hw.project_id,
+                event_type=EVENT_LIFECYCLE_TRANSITION,
+                dedupe_key=(
+                    f"version:{version.id}:lifecycle:{from_state}:{target_state}"
+                ),
+                actor_id=user.id,
+                source="api",
+                metadata={
+                    "object_id": str(version.object_id),
+                    "version_id": str(version.id),
+                    "version_num": version.version_num,
+                    "from_state": from_state,
+                    "to_state": target_state,
+                },
+            )
         return version
 
     def soft_delete(
