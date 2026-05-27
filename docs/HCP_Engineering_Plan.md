@@ -1,6 +1,8 @@
 # HCP Engineering Plan
 
-The canonical engineering specification lives at `~/.cursor/HCP.md` (v1.0).
+The canonical engineering specification for the currently-implemented phases lives at `~/.cursor/HCP.md` (v1.0).
+
+V5 (IDE + Version Control / fork integration) planning is tracked as a separate coordination effort and introduces additional workstreams and verify hooks (see `AGENTS.md`, `docs/V5_PARALLEL_WORKSTREAMS.md`, and `make v5-verify-*`).
 
 This repository implements **V1 — Hardware Object Store (HOS)** per that document.
 

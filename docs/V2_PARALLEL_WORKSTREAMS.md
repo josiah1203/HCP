@@ -64,3 +64,7 @@ Example coordinator batch (six parallel builds):
 | Parser | Plugins, `Converter`, sidecars | ADR-003, `docs/parser-plugins.md` |
 | Graph | `DERIVED_FROM`, derived versions | ADR-003 consequences |
 | Out of V1 | SolidWorks/Altium parsers, PDF OCR | HCP §1.3 |
+
+## V5 note
+
+V5 parallelization (IDE + Version Control workstreams) is tracked separately in `docs/V5_PARALLEL_WORKSTREAMS.md` and uses `./scripts/v2-worktree.sh create-v5 <id>` plus `make v5-verify-<id>`.

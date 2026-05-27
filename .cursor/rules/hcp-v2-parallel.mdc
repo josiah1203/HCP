@@ -12,3 +12,10 @@ When building V2 across multiple subagents:
 2. Each agent runs only its `make v2-verify-<id>` (see `AGENTS.md`).
 3. Coordinator may use `make v2-verify-parallel` on one clone; do not run `test-integration` concurrently on the same host.
 4. Route implementation to role subagents (`hcp-backend`, `hcp-parser`, etc.) per owned paths.
+
+When coordinating **V5 (IDE + version control)** planning/implementation:
+
+1. Create a v5 worktree per workstream: `./scripts/v2-worktree.sh create-v5 <hos|events|scene|fork|ide|marketplace|registry|cli>`
+2. Each agent runs only its `make v5-verify-<id>` (see `AGENTS.md`).
+3. Coordinator may use `make v5-verify-parallel` on one clone.
+4. Keep `v2-verify-*` behavior unchanged; v5 targets must be additive and fast.
