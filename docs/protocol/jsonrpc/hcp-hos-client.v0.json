@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "hcp.rpc.v0 HOS client surface (language-agnostic)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "protocol": { "const": "hcp.rpc.v0" },
+    "surface": { "const": "hos_client" },
+    "methods": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/method" }
+    }
+  },
+  "required": ["protocol", "surface", "methods"],
+  "$defs": {
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "params": { "$ref": "#/$defs/jsonSchema" },
+        "result": { "$ref": "#/$defs/jsonSchema" }
+      },
+      "required": ["name", "params", "result"]
+    },
+    "jsonSchema": { "type": "object" }
+  },
+  "methods": [
+    {
+      "name": "hos/commitTree/read",
+      "description": "Read a commit tree by ID (or by commitId -> treeId indirection).",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "treeId": { "type": "string" }
+        },
+        "required": ["treeId"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "treeId": { "type": "string" },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": { "type": "string" },
+                "kind": { "enum": ["blob", "tree"] },
+                "objectId": { "type": "string" },
+                "versionNum": { "type": "integer", "minimum": 1 }
+              },
+              "required": ["path", "kind", "objectId", "versionNum"]
+            }
+          }
+        },
+        "required": ["treeId", "entries"]
+      }
+    },
+    {
+      "name": "hos/commitTree/write",
+      "description": "Write (upsert) a commit tree. Returns canonical treeId (content-addressed if server supports).",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "treeId": { "type": "string" },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": { "type": "string" },
+                "kind": { "enum": ["blob", "tree"] },
+                "objectId": { "type": "string" },
+                "versionNum": { "type": "integer", "minimum": 1 }
+              },
+              "required": ["path", "kind", "objectId", "versionNum"]
+            }
+          }
+        },
+        "required": ["treeId", "entries"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "treeId": { "type": "string" }
+        },
+        "required": ["treeId"]
+      }
+    },
+    {
+      "name": "hos/blobs/upload",
+      "description": "Upload a single artifact blob (maps to /v1/objects/upload today).",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "projectId": { "type": "string" },
+          "name": { "type": "string" },
+          "filename": { "type": "string" },
+          "contentType": { "type": "string" }
+        },
+        "required": ["projectId", "name", "filename", "contentType"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "objectId": { "type": "string" },
+          "versionNum": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["objectId", "versionNum"]
+      }
+    },
+    {
+      "name": "hos/sceneGraph/upsert",
+      "description": "Upsert scene graph nodes/edges for a commit.",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "commitId": { "type": "string" },
+          "nodes": { "type": "array", "items": { "type": "object" } },
+          "edges": { "type": "array", "items": { "type": "object" } }
+        },
+        "required": ["commitId", "nodes", "edges"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "nodesUpserted": { "type": "integer", "minimum": 0 },
+          "edgesUpserted": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["nodesUpserted", "edgesUpserted"]
+      }
+    },
+    {
+      "name": "hos/snapshots/create",
+      "description": "Create a snapshot (e.g. scene graph snapshot) for a commit.",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "commitId": { "type": "string" },
+          "snapshotType": { "enum": ["sceneGraph"] }
+        },
+        "required": ["commitId", "snapshotType"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string" }
+        },
+        "required": ["snapshotId"]
+      }
+    },
+    {
+      "name": "hos/events/poll",
+      "description": "Poll events (for IDE sync, CI harness, and sidecar feedback loops).",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cursor": { "type": "string" },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 500 }
+        },
+        "required": ["cursor", "limit"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "nextCursor": { "type": "string" },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "id": { "type": "string" },
+                "type": { "type": "string" },
+                "createdAt": { "type": "string" }
+              },
+              "required": ["id", "type", "createdAt"]
+            }
+          }
+        },
+        "required": ["nextCursor", "events"]
+      }
+    }
+  ]
+}
+

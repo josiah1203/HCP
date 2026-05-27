@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "hcp.rpc.v0 Sidecar <-> SceneGraph JSON-RPC",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "protocol": { "const": "hcp.rpc.v0" },
+    "transport": { "enum": ["jsonrpc-stdio", "jsonrpc-tcp"] },
+    "methods": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/method" }
+    }
+  },
+  "required": ["protocol", "transport", "methods"],
+  "$defs": {
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "params": { "$ref": "#/$defs/jsonSchema" },
+        "result": { "$ref": "#/$defs/jsonSchema" }
+      },
+      "required": ["name", "params", "result"]
+    },
+    "jsonSchema": { "type": "object" }
+  },
+  "methods": [
+    {
+      "name": "hcp/sceneGraph/upsertNodes",
+      "description": "Upsert nodes into the scene graph (idempotent by nodeId).",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "commitId": { "type": "string" },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "nodeId": { "type": "string" },
+                "nodeType": { "type": "string" },
+                "attributes": { "type": "object", "additionalProperties": true }
+              },
+              "required": ["nodeId", "nodeType", "attributes"]
+            }
+          }
+        },
+        "required": ["commitId", "nodes"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "upserted": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["upserted"]
+      }
+    },
+    {
+      "name": "hcp/sceneGraph/upsertEdges",
+      "description": "Upsert edges into the scene graph (idempotent by edgeId).",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "commitId": { "type": "string" },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "edgeId": { "type": "string" },
+                "fromNodeId": { "type": "string" },
+                "toNodeId": { "type": "string" },
+                "edgeType": { "type": "string" },
+                "attributes": { "type": "object", "additionalProperties": true }
+              },
+              "required": ["edgeId", "fromNodeId", "toNodeId", "edgeType", "attributes"]
+            }
+          }
+        },
+        "required": ["commitId", "edges"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "upserted": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["upserted"]
+      }
+    },
+    {
+      "name": "hcp/sceneGraph/createSnapshot",
+      "description": "Create an immutable snapshot artifact for a commit's scene graph state.",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "commitId": { "type": "string" },
+          "snapshotFormat": { "enum": ["json", "glb", "octree+json"] }
+        },
+        "required": ["commitId", "snapshotFormat"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string" },
+          "artifactObjectId": { "type": "string" },
+          "artifactVersionNum": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["snapshotId", "artifactObjectId", "artifactVersionNum"]
+      }
+    }
+  ]
+}
+

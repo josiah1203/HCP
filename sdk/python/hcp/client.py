@@ -3,6 +3,7 @@ from __future__ import annotations
 from hcp._http import HttpClient
 from hcp.resources.bom import BomResource
 from hcp.resources.graph import GraphResource
+from hcp.resources.hos import HosResource
 from hcp.resources.objects import ObjectsResource
 from hcp.resources.projects import ProjectsResource
 from hcp.resources.search import SearchResource
@@ -31,6 +32,7 @@ class Client:
         self.bom = BomResource(self._http)
         self.graph = GraphResource(self._http)
         self.search = SearchResource(self._http)
+        self.hos = HosResource(self._http)
 
     def close(self) -> None:
         self._http.close()

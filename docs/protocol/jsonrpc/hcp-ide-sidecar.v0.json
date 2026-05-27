@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "hcp.rpc.v0 ExtensionHost <-> Sidecar JSON-RPC",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "protocol": { "const": "hcp.rpc.v0" },
+    "transport": { "enum": ["jsonrpc-stdio"] },
+    "methods": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/method" }
+    }
+  },
+  "required": ["protocol", "transport", "methods"],
+  "$defs": {
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "params": { "$ref": "#/$defs/jsonSchema" },
+        "result": { "$ref": "#/$defs/jsonSchema" }
+      },
+      "required": ["name", "params", "result"]
+    },
+    "jsonSchema": {
+      "type": "object",
+      "description": "Embedded JSON Schema for params/result payloads."
+    }
+  },
+  "methods": [
+    {
+      "name": "hcp/ping",
+      "description": "Health check. Used for capability negotiation and startup confirmation.",
+      "params": { "type": "object", "additionalProperties": false, "properties": {}, "required": [] },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "protocol": { "const": "hcp.rpc.v0" },
+          "sidecar": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "version": { "type": "string" }
+            },
+            "required": ["name", "version"]
+          },
+          "capabilities": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "supportsSceneGraphWrites": { "type": "boolean" },
+              "supportsRoundtripExport": { "type": "boolean" }
+            }
+          }
+        },
+        "required": ["protocol", "sidecar", "capabilities"]
+      }
+    },
+    {
+      "name": "hcp/project/open",
+      "description": "Open/activate a project context (maps to one HCP project + working directory).",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "projectId": { "type": "string" },
+          "workspaceRoot": { "type": "string" },
+          "auth": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "apiUrl": { "type": "string" },
+              "token": { "type": "string" }
+            },
+            "required": ["apiUrl", "token"]
+          }
+        },
+        "required": ["projectId", "workspaceRoot", "auth"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": { "ok": { "const": true } },
+        "required": ["ok"]
+      }
+    },
+    {
+      "name": "hcp/document/applyMutations",
+      "description": "Apply one or more tool-native mutations (used by mutation-hook regression suite). Sidecar must emit corresponding scene graph writes.",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "documentUri": { "type": "string" },
+          "mutations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "kind": { "type": "string" },
+                "payload": { "type": "object" }
+              },
+              "required": ["kind", "payload"]
+            }
+          }
+        },
+        "required": ["documentUri", "mutations"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "applied": { "type": "integer", "minimum": 0 },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "index": { "type": "integer", "minimum": 0 },
+                "code": { "type": "string" },
+                "message": { "type": "string" }
+              },
+              "required": ["index", "code", "message"]
+            }
+          }
+        },
+        "required": ["applied", "errors"]
+      }
+    },
+    {
+      "name": "hcp/document/export",
+      "description": "Export a document into an interchange representation for roundtrip verification (e.g. Gerber/BOM/STEP).",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "documentUri": { "type": "string" },
+          "format": { "type": "string" },
+          "outputDir": { "type": "string" }
+        },
+        "required": ["documentUri", "format", "outputDir"]
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": { "type": "string" },
+                "contentType": { "type": "string" }
+              },
+              "required": ["path", "contentType"]
+            }
+          }
+        },
+        "required": ["artifacts"]
+      }
+    }
+  ]
+}
+
