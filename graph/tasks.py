@@ -138,6 +138,29 @@ def auto_link_version(self, version_id: str) -> dict:
 
         enrich_parts_for_version.delay(version_id)
 
+        try:
+            from app.services.event_taxonomy import EVENT_GRAPH_AUTO_LINK_COMPLETE
+            from app.services.events import EventPublisher
+
+            pub = EventPublisher(db)
+            pub.publish(
+                org_id=version.org_id,
+                project_id=project.id,
+                event_type=EVENT_GRAPH_AUTO_LINK_COMPLETE,
+                dedupe_key=f"version:{version.id}:auto_link_complete",
+                actor_id=None,
+                source="graph",
+                metadata={
+                    "version_id": str(version.id),
+                    "object_id": str(hw.id),
+                    "version_num": version.version_num,
+                    "uses_edges": uses,
+                },
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+
         return {"status": "ok", "version_id": version_id, "uses_edges": uses}
     except Exception as exc:
         raise self.retry(exc=exc, countdown=2**self.request.retries) from exc
