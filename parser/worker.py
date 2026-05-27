@@ -49,6 +49,8 @@ def _version_metadata(version) -> dict:
 @celery_app.task(name="parser.worker.parse_object", bind=True, max_retries=3)
 def parse_object(self, version_id: str) -> dict:
     from app.models.db import HardwareObject, Version  # noqa: PLC0415
+    from app.services.event_taxonomy import EVENT_PARSE_COMPLETE  # noqa: PLC0415
+    from app.services.events import EventPublisher  # noqa: PLC0415
     from infra.pal.factory import get_storage_provider  # noqa: PLC0415
 
     storage = get_storage_provider()
@@ -109,6 +111,24 @@ def parse_object(self, version_id: str) -> dict:
         db.commit()
 
         if version.parse_status == "complete":
+            try:
+                pub = EventPublisher(db)
+                pub.publish(
+                    org_id=version.org_id,
+                    project_id=hw_object.project_id,
+                    event_type=EVENT_PARSE_COMPLETE,
+                    dedupe_key=f"version:{version.id}:parse_complete",
+                    actor_id=None,
+                    source="parser",
+                    metadata={
+                        "version_id": str(version.id),
+                        "object_id": str(version.object_id),
+                        "version_num": version.version_num,
+                    },
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
             try:
                 from graph.tasks import enqueue_auto_link
 
