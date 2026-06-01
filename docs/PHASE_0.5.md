@@ -6,42 +6,81 @@ Canonical engineering spec: `~/.cursor/HCP.md`. Detailed sidecar port plan: `.cu
 
 **OSS vs host:** [OSS_HOST_DEPENDENCIES.md](./OSS_HOST_DEPENDENCIES.md) — sidecars are in-repo; KiCad/FreeCAD/simulator **binaries are not vendored**.
 
-**Public roadmap stub:** [PUBLIC_ROADMAP.md](./PUBLIC_ROADMAP.md). **Durability beta notes:** [DURABILITY_BETA.md](./DURABILITY_BETA.md).
+**Public roadmap:** [PUBLIC_ROADMAP.md](./PUBLIC_ROADMAP.md). **Durability beta notes:** [DURABILITY_BETA.md](./DURABILITY_BETA.md). **Local K8s:** [K8S_LOCAL.md](./K8S_LOCAL.md).
+
+## Phase 0.5 sign-off (2026-06-01)
+
+| Field | Value |
+|-------|--------|
+| **Commit** | [`222218b`](https://github.com/josiah1203/HCP/commit/222218b7ad632249f0bfb2b6039799e8d5818be7) (`main`) |
+| **Tag** | `phase-0.5-beta-rc1` (annotated; see git tag list) |
+| **Readiness estimate** | **~82%** of in-repo v7.1 Phase 0.5 criteria; **~68%** including external ops gates for true beta-open |
+
+### Test battery (Phase D — executed on sign-off)
+
+| Suite | Command / path | Result |
+|-------|----------------|--------|
+| Rust sidecars | `cd rust && cargo test` | **23 passed** |
+| API beta battery | `api/tests/test_hnf.py`, `test_hos_*.py`, `test_scene_graph.py`, `test_collaboration.py`, `test_events.py`, `test_import_pipeline.py`, `test_org_invites.py`, `test_v1_endpoints.py` | **32 passed**, 1 skipped |
+| CLI | `cli/tests` | **17 passed** |
+| Regression unit | `scripts/regression/tests` | **12 passed** |
+| Mutation-hook driver | `scripts/regression/run_suite.py mutation-hook --mutations 4` | **pass** |
+| Helm validate | `infra/kind/helm-validate.sh` | **pass** (lint + template) |
+
+**Totals:** 84 pytest cases passed (1 skipped) + 23 Rust tests + mutation-hook + helm validate.
+
+Parallel tracks merged on `main` (evidence commits): [`dd2f3ff`](https://github.com/josiah1203/HCP/commit/dd2f3ff) (OSS/adapters/subprocess), [`222218b`](https://github.com/josiah1203/HCP/commit/222218b) (kind/Helm/durability), [`94935bf`](https://github.com/josiah1203/HCP/commit/94935bf)/[`bc41544`](https://github.com/josiah1203/HCP/commit/bc41544) (import + org invites), [`6217c4b`](https://github.com/josiah1203/HCP/commit/6217c4b)/[`b9fce6b`](https://github.com/josiah1203/HCP/commit/b9fce6b)/[`a51acee`](https://github.com/josiah1203/HCP/commit/a51acee) (regression + ops).
 
 ## Beta scope (in repo)
 
 | Area | Location | Status |
 |------|----------|--------|
-| HNF documents + validation | `api/app/services/hnf.py`, `api/tests/test_hnf.py` | Integrated |
-| HOS version control (branches, commits, diff, merge) | `api/app/services/hos_version_control.py`, `api/tests/test_hos_version_control.py` | Integrated |
-| Merge conflicts + resolve + **auto-complete merge** when all resolved | `POST /v1/hos/conflicts/{id}/resolve` | Integrated |
-| Object snapshots on commits | `api/tests/test_hos_object_snapshots.py` | Integrated |
-| Scene graph + snapshots | `api/app/services/scene_graph.py`, `api/tests/test_scene_graph.py` | Integrated |
-| Collaboration (presence, locks) | `api/tests/test_collaboration.py` | Integrated |
-| Event stream | `api/app/services/events.py`, `api/tests/test_events.py` | Integrated |
-| Rust sidecars (protocol, runner, KiCad/FreeCAD/sim stubs) | `rust/crates/*` | Integrated |
-| Mutation-hook regression driver | `scripts/regression/run_suite.py`, `scripts/regression/mutation_hook.py` | Integrated |
-| Roundtrip / DRC / simulation-stability regression | `scripts/regression/roundtrip.py`, `drc.py`, `simulation_stability.py` | Integrated (best-effort; stub sidecars) |
-| `hw` CLI (login, branches, commits, merge, conflicts) | `cli/hw/` | Integrated |
+| HNF documents + validation | `api/app/services/hnf.py`, `api/tests/test_hnf.py` | Done |
+| HOS version control (branches, commits, diff, merge) | `api/app/services/hos_version_control.py`, `api/tests/test_hos_version_control.py` | Done |
+| Merge conflicts + resolve + **auto-complete merge** | `POST /v1/hos/conflicts/{id}/resolve` | Done |
+| Object snapshots on commits | `api/tests/test_hos_object_snapshots.py` | Done |
+| Scene graph + snapshots | `api/app/services/scene_graph.py`, `api/tests/test_scene_graph.py` | Done |
+| Collaboration (presence, locks) | `api/tests/test_collaboration.py` | Done |
+| Event stream | `api/app/services/events.py`, `api/tests/test_events.py` | Done |
+| Import pipeline + loss gate | `api/app/services/import_pipeline.py`, `api/tests/test_import_pipeline.py`, `cli/hw/` import | Done |
+| Org invite MVP | `api/tests/test_org_invites.py` | Done |
+| Rust sidecars + host subprocess seam | `rust/crates/*`, `adapters/crates/*` | Done (CI default: stubs) |
+| Mutation-hook / roundtrip / DRC / sim regression | `scripts/regression/` | Done (best-effort without host OSS) |
+| `hw` CLI (login, branches, commits, merge, conflicts, import) | `cli/hw/` | Done |
+| kind + Helm data plane | `infra/kind/`, `infra/helm/hcp-platform/` | Done (chart validate in CI path) |
+| Postgres backup + restore drill scripts | `infra/helm/hcp-platform/templates/backup-cronjob.yaml`, `infra/kind/restore-drill.sh` | Partial — scripted, drill not re-run at sign-off |
+| OSS fork bootstrap (no GPL in monorepo) | `infra/oss-bootstrap/` | Partial — templates/scripts; external `hcp-oss/*` repos operator-owned |
+| Adapter workspace (Apache 2.0) | `adapters/crates/hnf-adapter-sdk`, `hnf-kicad`, `hnf-freecad` | Partial — in monorepo; not yet on crates.io |
 
-## Phase 0.5 completion (audit estimate)
+## v7.1 Phase 0.5 readiness checklist
 
-**~62% of v7.1 Phase 0.5 readiness criteria** have in-repo or test-covered implementations. Remaining work is mostly ops/product (billing, ToS, status page), host OSS subprocess wiring, import corpus, and durability drills.
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| HOS VC + collaboration + events + scene graph | **Done** | API services + tests above; commits through `b6dd0d2` |
+| Rust sidecar protocol + mutation-hook regression | **Done** | `rust/crates/sidecar-protocol`, `scripts/regression/mutation_hook.py`; `d1ff3d2` |
+| `hw` CLI for VC (+ import) | **Done** | `cli/hw/`, `cli/tests/test_hw_cli.py` |
+| OSS engines as host subprocesses (not vendored) | **Partial** | `SubprocessKiCadBinding`, `SubprocessFreecadEngineBridge` — [`dd2f3ff`](https://github.com/josiah1203/HCP/commit/dd2f3ff), [`docs/OSS_HOST_DEPENDENCIES.md`](./OSS_HOST_DEPENDENCIES.md); default CI remains stub/noop |
+| `hcp-oss/kicad` + `hcp-oss/freecad` forks live | **Blocked** (external) | Bootstrap: `infra/oss-bootstrap/` — repos must exist on GitHub org; not verified at sign-off |
+| `hcp-adapters/*` published crates | **Partial** | `adapters/` workspace in monorepo; publish to crates.io / git tags still ops |
+| Import pipeline + corpus &lt;5% loss | **Done** | `api/tests/test_import_pipeline.py` (`loss_ratio < 0.05`); [`94935bf`](https://github.com/josiah1203/HCP/commit/94935bf) |
+| Org signup / invite / roles E2E | **Done** | `api/tests/test_org_invites.py`; [`94935bf`](https://github.com/josiah1203/HCP/commit/94935bf) |
+| kind: API + Postgres + Redis + MinIO + migrate | **Done** (automation) | [`222218b`](https://github.com/josiah1203/HCP/commit/222218b), [`docs/K8S_LOCAL.md`](./K8S_LOCAL.md), `helm-validate.sh` green |
+| Restore drill executed once | **Partial** | `infra/kind/restore-drill.sh`, [`docs/DURABILITY_BETA.md`](./DURABILITY_BETA.md) — not re-executed during sign-off run |
+| Roundtrip / DRC / simulation-stability regression | **Partial** | Drivers in `scripts/regression/` — [`6217c4b`](https://github.com/josiah1203/HCP/commit/6217c4b); full fidelity needs `HCP_USE_HOST_OSS=1` + binaries |
+| Public roadmap + out-of-scope list | **Done** | [`PUBLIC_ROADMAP.md`](./PUBLIC_ROADMAP.md) |
+| Billing, counsel-approved ToS, live status page | **Blocked** (external) | [`docs/legal/PLACEHOLDER.md`](./legal/PLACEHOLDER.md), [`docs/ops/STATUS_PAGE.md`](./ops/STATUS_PAGE.md) |
+| Collaboration stress soak (2 users) | **Partial** | [`scripts/collaboration_soak.py`](../scripts/collaboration_soak.py), criteria below — no staging soak log attached |
+| Two-week stable internal alpha | **Blocked** (process) | Release branch discipline; not verifiable from git |
 
-| Criterion (v7.1 § Phase 0.5 Readiness) | Status |
-|----------------------------------------|--------|
-| HOS VC + collaboration + events + scene graph | Done (API + tests) |
-| Rust sidecar protocol seam + mutation-hook regression | Done |
-| `hw` CLI for VC operations | Done |
-| OSS engines run as host subprocesses (not vendored) | **Partial** — sim subprocess infra yes; KiCad/FreeCAD still stub/noop in default binaries |
-| Import pipeline (KiCad/FreeCAD corpus, import branches) | **Not started** (API/CLI) |
-| Org signup / invite / roles E2E | **Partial** — org-scoped RBAC in API; no signup/invite flow |
-| Cloud durability confirmed + DR runbook tested | **Docs only** — see DURABILITY_BETA.md |
-| Billing, ToS, privacy, status page | **Out of repo** |
-| Public roadmap published | **Expanded** — PUBLIC_ROADMAP.md |
-| Legal / status page | **Stubs** — docs/legal/PLACEHOLDER.md, docs/ops/STATUS_PAGE.md |
-| Collaboration stress (2-user soak) | **Documented** — see below |
-| Two-week stable internal alpha | **Process** — not verifiable from git |
+## Remaining gaps for true beta-open
+
+1. **Create and steward** `hcp-oss/kicad` and `hcp-oss/freecad` on GitHub (`infra/oss-bootstrap/*/bootstrap-repo.sh`).
+2. **Publish** `hnf-adapter-sdk`, `hnf-kicad`, `hnf-freecad` (crates.io or versioned git) and pin HCP releases to them.
+3. **Run** `infra/kind/restore-drill.sh` once; record RPO/RTO date in ops log ([`DURABILITY_BETA.md`](./DURABILITY_BETA.md)).
+4. **Run** collaboration soak on staging; attach summary to release notes.
+5. **External ops:** billing, ToS/privacy counsel sign-off, status page URL in README.
+6. **Optional CI job** with `HCP_USE_HOST_OSS=1` on a runner with KiCad/FreeCAD installed.
+7. **Two-week** internal alpha stability window before public invite.
 
 ## Collaboration stress gate (C3 — soak test)
 
@@ -97,7 +136,7 @@ k6/Locust scripts under `scripts/load/` may replace the shell loop later; until 
 ## Out of scope for Phase 0.5
 
 - Runnable Rust IDE shell (host uses JSON-RPC contracts in `docs/protocol/jsonrpc/`)
-- Production deployment hardening beyond existing Terraform/Helm scaffolding
+- Production multi-region HA beyond single-cluster durability beta
 - Hosted status page and counsel-approved ToS (tracked via ops stubs; external publish required)
 
 ## Verify locally
@@ -115,12 +154,14 @@ PYTHONPATH=api:.. python3 -m pytest \
   api/tests/test_scene_graph.py \
   api/tests/test_collaboration.py \
   api/tests/test_events.py \
+  api/tests/test_import_pipeline.py \
+  api/tests/test_org_invites.py \
   api/tests/test_v1_endpoints.py -q
 
 # CLI + regression unit tests
 PYTHONPATH=api:.. python3 -m pytest cli/tests scripts/regression/tests -q
 
-# Regression suites (roundtrip / drc / sim use bundled fixtures)
+# Regression suites
 python3 scripts/regression/run_suite.py mutation-hook \
   --seed scripts/regression/fixtures/minimal_seed.json \
   --mutations 4
@@ -132,6 +173,9 @@ python3 scripts/regression/run_suite.py drc \
 python3 scripts/regression/run_suite.py simulation-stability \
   --corpus scripts/regression/fixtures/sim_corpus \
   --goldens scripts/regression/fixtures/sim_goldens
+
+# Helm (no cluster)
+./infra/kind/helm-validate.sh
 ```
 
 ## Repository
