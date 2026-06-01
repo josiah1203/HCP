@@ -617,6 +617,134 @@ class HosVersionControlService:
 
         return merge_row, result_commit, len(conflicts)
 
+    def _value_from_resolution(self, conflict: HosConflict) -> Any:
+        resolution = conflict.resolution or {}
+        take = resolution.get("take")
+        if take == "ours":
+            return conflict.ours
+        if take == "theirs":
+            return conflict.theirs
+        if "value" in resolution:
+            return resolution["value"]
+        raise ValueError("invalid_resolution")
+
+    def _snapshot_payloads_from_tree(self, merged_tree: dict[str, Any]) -> list[dict[str, Any]]:
+        return [
+            {
+                "object_path": path,
+                "hnf_type": (val or {}).get("hnf_type", "hardware.object"),
+                "object_id": val.get("object_id"),
+                "version_id": val.get("version_id"),
+                "version_num": val.get("version_num"),
+                "content_hash": val.get("content_hash"),
+                "domain": val.get("domain"),
+                "refs": val.get("refs") or [],
+                "properties": val.get("properties"),
+            }
+            for path, val in merged_tree.items()
+        ]
+
+    def _try_finalize_merge(
+        self,
+        *,
+        user: CurrentUser,
+        project_id: uuid.UUID,
+        merge_id: uuid.UUID,
+    ) -> HosCommit | None:
+        merge_row = self.db.scalar(
+            select(HosMerge).where(
+                HosMerge.id == merge_id,
+                HosMerge.org_id == user.org_id,
+                HosMerge.project_id == project_id,
+            )
+        )
+        if merge_row is None or merge_row.status != "conflicts":
+            return None
+
+        conflicts = self.list_conflicts(
+            user=user, project_id=project_id, merge_id=merge_id
+        )
+        if not conflicts or any(c.status != "resolved" for c in conflicts):
+            return None
+
+        conflict_by_path = {c.path: c for c in conflicts}
+
+        ours_commit = (
+            self.get_commit(
+                user=user,
+                project_id=project_id,
+                commit_id=merge_row.target_head_commit_id,
+            )
+            if merge_row.target_head_commit_id
+            else None
+        )
+        theirs_commit = (
+            self.get_commit(
+                user=user,
+                project_id=project_id,
+                commit_id=merge_row.source_head_commit_id,
+            )
+            if merge_row.source_head_commit_id
+            else None
+        )
+
+        ours_tree = self._commit_state_map(ours_commit, user.org_id) if ours_commit else {}
+        theirs_tree = (
+            self._commit_state_map(theirs_commit, user.org_id) if theirs_commit else {}
+        )
+
+        merged_tree: dict[str, Any] = dict(ours_tree)
+        for path, theirs_value in theirs_tree.items():
+            if path in conflict_by_path:
+                merged_tree[path] = self._value_from_resolution(conflict_by_path[path])
+                continue
+            ours_value = ours_tree.get(path)
+            if ours_value is None:
+                merged_tree[path] = theirs_value
+            elif ours_value != theirs_value:
+                merged_tree[path] = self._value_from_resolution(conflict_by_path[path])
+
+        parent_ids: list[uuid.UUID] = []
+        if ours_commit is not None:
+            parent_ids.append(ours_commit.id)
+        if theirs_commit is not None:
+            parent_ids.append(theirs_commit.id)
+
+        target = self.get_branch(
+            user=user,
+            project_id=project_id,
+            branch_id=merge_row.target_branch_id,
+        )
+        source = self.get_branch(
+            user=user,
+            project_id=project_id,
+            branch_id=merge_row.source_branch_id,
+        )
+
+        result_commit = self.commit(
+            user=user,
+            project_id=project_id,
+            branch_id=target.id,
+            message=f"Merge {source.name} into {target.name}",
+            object_snapshots=self._snapshot_payloads_from_tree(merged_tree),
+            parent_commit_ids=parent_ids,
+        )
+        merge_row.status = "merged"
+        merge_row.result_commit_id = result_commit.id
+        self._write_audit(
+            user=user,
+            project_id=project_id,
+            entity_type="merge",
+            entity_id=merge_row.id,
+            event_type="merge_completed",
+            metadata={
+                "result_commit_id": str(result_commit.id),
+                "target_branch_id": str(target.id),
+                "source_branch_id": str(source.id),
+            },
+        )
+        return result_commit
+
     def list_conflicts(
         self, *, user: CurrentUser, project_id: uuid.UUID, merge_id: uuid.UUID
     ) -> list[HosConflict]:
@@ -675,5 +803,8 @@ class HosVersionControlService:
             entity_id=conflict.id,
             event_type="conflict_resolved",
             metadata={"path": conflict.path},
+        )
+        self._try_finalize_merge(
+            user=user, project_id=project_id, merge_id=conflict.merge_id
         )
         return conflict

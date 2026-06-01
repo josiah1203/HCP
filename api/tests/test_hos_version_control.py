@@ -108,3 +108,14 @@ def test_hos_branch_commit_diff_merge_conflicts(client):
         assert resolve.status_code == 200
         assert resolve.json()["status"] == "resolved"
 
+        branches = client.get(
+            "/v1/hos/branches",
+            headers=headers,
+            params={"project_id": project_id},
+        )
+        assert branches.status_code == 200
+        main_after = next(
+            b for b in branches.json()["data"] if b["id"] == main_branch_id
+        )
+        assert main_after["head_commit_id"] != commit_main_1
+
