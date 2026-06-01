@@ -2,6 +2,8 @@
 
 Cloud-native, API-first system of record for hardware artifacts. V1 delivers the **Hardware Object Store (HOS)**: immutable versions, auto-parse, PartGraph, search, SDKs, and multi-tenant isolation.
 
+**Canonical repository:** [github.com/josiah1203/HCP](https://github.com/josiah1203/HCP) (`git@github.com:josiah1203/HCP.git`). Local checkouts may use a different directory name (e.g. `HCP_working`). Phase 0.5 beta scope and verification commands: [`docs/PHASE_0.5.md`](docs/PHASE_0.5.md).
+
 ## Quick start
 
 Requires **Docker Desktop** (or Docker Engine + Compose v2) and Python 3.11 for local tests.
