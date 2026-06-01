@@ -8,6 +8,10 @@ license.workspace = true
 name = "kicad_sidecar"
 path = "src/lib.rs"
 
+[[bin]]
+name = "kicad-sidecar"
+path = "src/main.rs"
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true

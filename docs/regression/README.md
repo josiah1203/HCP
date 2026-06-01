@@ -54,11 +54,32 @@ Goal: simulation results are stable across versions for known-good inputs.
 - `scripts/regression/suites/*.py`: suite drivers (thin adapters).
 - `docs/protocol/jsonrpc/*.json`: protocol contracts that suites can validate against.
 
-## Example commands (skeleton)
+## Example commands
+
+Build sidecar binaries once:
+
+```bash
+source "$HOME/.cargo/env"
+cargo build -p kicad-sidecar -p freecad-sidecar --manifest-path rust/Cargo.toml
+```
+
+### Mutation hook (implemented)
+
+Drives `hcp/ping`, `hcp/project/open`, and `hcp/document/applyMutations` over stdio JSON-RPC.
+KiCad sidecar emits `HCP_TRACE:` lines for `hcp/sceneGraph/upsertNodes` / `upsertEdges`; the harness
+validates schema fields and expected node types.
+
+```bash
+python3 scripts/regression/run_suite.py mutation-hook \
+  --seed scripts/regression/fixtures/minimal_seed.json \
+  --mutations 8 \
+  --out out/regression/mutation_hook.json
+```
+
+### Other suites (skeleton)
 
 ```bash
 python3 scripts/regression/run_suite.py roundtrip --corpus path/to/corpus
-python3 scripts/regression/run_suite.py mutation-hook --seed path/to/project --mutations 100
 python3 scripts/regression/run_suite.py drc --corpus path/to/corpus --goldens path/to/goldens
 python3 scripts/regression/run_suite.py simulation-stability --corpus path/to/corpus --goldens path/to/goldens
 ```

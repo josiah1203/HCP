@@ -8,6 +8,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+_REGRESSION_DIR = Path(__file__).resolve().parent
+if str(_REGRESSION_DIR) not in sys.path:
+    sys.path.insert(0, str(_REGRESSION_DIR))
+
 
 @dataclass(frozen=True)
 class SuiteResult:
@@ -31,11 +35,25 @@ def run_roundtrip(args: argparse.Namespace) -> SuiteResult:
 
 
 def run_mutation_hook(args: argparse.Namespace) -> SuiteResult:
-    # Placeholder: drive `hcp/document/applyMutations` and validate emitted scene graph RPCs.
+    from mutation_hook import ensure_sidecars_built, run_mutation_hook_suite
+
+    ensure_sidecars_built()
+    trace = run_mutation_hook_suite(
+        seed=Path(args.seed),
+        mutations_count=args.mutations,
+        sidecars=args.sidecars,
+    )
+    trace_path = Path(args.out).with_name("mutation_hook_trace.json")
+    _write_json(trace_path, trace)
     return SuiteResult(
         suite="mutation-hook",
-        ok=True,
-        details={"note": "skeleton only", "seed": args.seed, "mutations": args.mutations},
+        ok=bool(trace.get("ok")),
+        details={
+            "seed": args.seed,
+            "mutations": args.mutations,
+            "tracePath": str(trace_path),
+            "sidecars": [s.get("sidecar") for s in trace.get("sidecars", [])],
+        },
     )
 
 
@@ -69,6 +87,13 @@ def main() -> int:
     p2 = sub.add_parser("mutation-hook")
     p2.add_argument("--seed", required=True)
     p2.add_argument("--mutations", type=int, default=100)
+    p2.add_argument(
+        "--sidecars",
+        nargs="+",
+        choices=["kicad", "freecad"],
+        default=None,
+        help="Sidecars to exercise (default: kicad and freecad)",
+    )
     p2.add_argument("--out", default="out/regression/mutation_hook.json")
     p2.set_defaults(_fn=run_mutation_hook)
 

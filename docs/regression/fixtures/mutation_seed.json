@@ -1,0 +1,5 @@
+{
+  "documentUri": "hcp://regression/project/board.kicad_pro",
+  "projectId": "regression-project",
+  "sidecars": ["kicad", "freecad"]
+}

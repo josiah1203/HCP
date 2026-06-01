@@ -3,11 +3,12 @@ use std::sync::{Arc, Mutex};
 use hnf_adapter::SceneGraphDeltas;
 use serde_json::{json, Value};
 use sidecar_protocol::{
-    method, ApplyMutationsError, ApplyMutationsParams, ApplyMutationsResult, ExportArtifact,
-    ExportParams, ExportResult, JsonRpcError, Mutation, OkResult, ProjectOpenParams, SceneGraphEdge,
-    SceneGraphNode, SceneGraphUpsertEdgesParams, SceneGraphUpsertNodesParams, SceneGraphUpsertResult,
+    method, ApplyMutationsError, ApplyMutationsParams, ApplyMutationsResult, Capabilities,
+    ExportArtifact, ExportParams, ExportResult, JsonRpcError, Mutation, OkResult, ProjectOpenParams,
+    SceneGraphEdge, SceneGraphNode, SceneGraphUpsertEdgesParams, SceneGraphUpsertNodesParams,
+    SceneGraphUpsertResult,
 };
-use sidecar_runner::{Handler, SidecarRunner};
+use sidecar_runner::{Handler, RunnerConfig, SidecarRunner};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -277,6 +278,56 @@ fn new_commit_id() -> String {
         .duration_since(UNIX_EPOCH)
         .expect("clock after epoch");
     format!("kicad-{}", now.as_nanos())
+}
+
+/// Emits one JSON object per line on stderr prefixed with `HCP_TRACE:` (regression harness).
+pub struct TracingSceneGraph;
+
+impl SceneGraphClient for TracingSceneGraph {
+    fn upsert_nodes(
+        &self,
+        params: SceneGraphUpsertNodesParams,
+    ) -> Result<SceneGraphUpsertResult, SidecarError> {
+        emit_scene_trace(sidecar_protocol::method::SCENEGRAPH_UPSERT_NODES, &params);
+        let upserted = params.nodes.len();
+        Ok(SceneGraphUpsertResult { upserted })
+    }
+
+    fn upsert_edges(
+        &self,
+        params: SceneGraphUpsertEdgesParams,
+    ) -> Result<SceneGraphUpsertResult, SidecarError> {
+        emit_scene_trace(sidecar_protocol::method::SCENEGRAPH_UPSERT_EDGES, &params);
+        let upserted = params.edges.len();
+        Ok(SceneGraphUpsertResult { upserted })
+    }
+}
+
+fn emit_scene_trace(method: &str, params: &impl serde::Serialize) {
+    let payload = json!({ "method": method, "params": params });
+    if let Ok(line) = serde_json::to_string(&payload) {
+        eprintln!("HCP_TRACE:{line}");
+    }
+}
+
+pub fn build_stdio_runner() -> SidecarRunner {
+    use std::collections::BTreeMap;
+
+    let sidecar = KiCadSidecar::new(
+        Arc::new(StubKiCadBinding),
+        Arc::new(TracingSceneGraph),
+    );
+    let mut runner = SidecarRunner::new(RunnerConfig {
+        sidecar_name: "kicad".to_string(),
+        sidecar_version: env!("CARGO_PKG_VERSION").to_string(),
+        capabilities: Capabilities {
+            supportsSceneGraphWrites: Some(true),
+            supportsRoundtripExport: Some(true),
+            extra: BTreeMap::new(),
+        },
+    });
+    sidecar.register_handlers(&mut runner);
+    runner
 }
 
 pub struct StubKiCadBinding;

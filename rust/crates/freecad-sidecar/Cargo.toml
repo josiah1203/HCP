@@ -8,6 +8,10 @@ license.workspace = true
 name = "freecad_sidecar"
 path = "src/lib.rs"
 
+[[bin]]
+name = "freecad-sidecar"
+path = "src/main.rs"
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true

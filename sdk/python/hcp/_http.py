@@ -71,8 +71,14 @@ class HttpClient:
     def get_json(self, path: str, *, params: dict[str, Any] | None = None) -> Any:
         return self.request("GET", path, params=params).json()
 
-    def post_json(self, path: str, *, json: dict[str, Any] | None = None) -> Any:
-        return self.request("POST", path, json=json).json()
+    def post_json(
+        self,
+        path: str,
+        *,
+        json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        return self.request("POST", path, json=json, params=params).json()
 
     def poll_parse(
         self,
