@@ -185,7 +185,10 @@ def create_snapshot(
     svc = SceneGraphService(db)
     try:
         row, created = svc.create_snapshot(
-            user=user, project_id=payload.project_id, commit_id=payload.commit_id
+            user=user,
+            project_id=payload.project_id,
+            commit_id=payload.commit_id,
+            snapshot_format=payload.snapshot_format,
         )
         db.commit()
         return {"snapshot": row, "deduped": not created}

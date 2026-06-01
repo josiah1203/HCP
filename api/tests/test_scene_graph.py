@@ -156,7 +156,11 @@ def test_scene_component_identities_nodes_edges_and_snapshot(client):
     assert snap1.status_code == 201
     snap_id = snap1.json()["snapshot"]["id"]
     assert snap1.json()["deduped"] is False
-    assert "nodes" in snap1.json()["snapshot"]["snapshot"]
+    snap_body = snap1.json()["snapshot"]["snapshot"]
+    assert "nodes" in snap_body
+    assert snap_body.get("format") == "json"
+    assert snap_body.get("protocol") == "hcp.rpc.v0"
+    assert snap1.json()["snapshot"]["snapshot_format"] == "json"
 
     snap2 = client.post(
         "/v1/scene/snapshots",

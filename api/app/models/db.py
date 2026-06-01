@@ -333,8 +333,14 @@ class HosCommit(Base):
         UUID(as_uuid=True), ForeignKey("users.id")
     )
     tree: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    tree_root_ref: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+    object_snapshots: Mapped[list["HosObjectSnapshot"]] = relationship(
+        back_populates="commit",
+        cascade="all, delete-orphan",
     )
 
     parents: Mapped[list["HosCommitParent"]] = relationship(
@@ -430,6 +436,71 @@ class HosConflict(Base):
     resolved_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
+
+
+class HnfDocument(Base):
+    __tablename__ = "hnf_documents"
+    __table_args__ = (
+        UniqueConstraint("org_id", "project_id", "document_uri"),
+        Index("ix_hnf_documents_org_project", "org_id", "project_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orgs.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+    document_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    body: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    validation_warnings: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class HosObjectSnapshot(Base):
+    __tablename__ = "hos_object_snapshots"
+    __table_args__ = (
+        UniqueConstraint("commit_id", "object_path"),
+        Index("ix_hos_object_snapshots_commit", "commit_id"),
+        Index("ix_hos_object_snapshots_org_project", "org_id", "project_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orgs.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+    commit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("hos_commits.id", ondelete="CASCADE")
+    )
+    object_path: Mapped[str] = mapped_column(Text, nullable=False)
+    object_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("objects.id", ondelete="SET NULL"), nullable=True
+    )
+    version_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("versions.id", ondelete="SET NULL"), nullable=True
+    )
+    content_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    hnf_type: Mapped[str] = mapped_column(Text, nullable=False)
+    domain: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    refs: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    properties: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    snapshot_version: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    commit: Mapped[HosCommit] = relationship(back_populates="object_snapshots")
 
 
 class HosAuditLog(Base):
@@ -588,6 +659,85 @@ class SceneGraphEdge(Base):
     )
 
 
+class CollaborationPresence(Base):
+    __tablename__ = "collaboration_presence"
+    __table_args__ = (
+        UniqueConstraint(
+            "org_id",
+            "project_id",
+            "user_id",
+            "session_id",
+            name="collaboration_presence_session_unique",
+        ),
+        Index("ix_collaboration_presence_org_project", "org_id", "project_id"),
+        Index(
+            "ix_collaboration_presence_last_heartbeat",
+            "org_id",
+            "project_id",
+            "last_heartbeat_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orgs.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    session_id: Mapped[str] = mapped_column(Text, nullable=False)
+    resource_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    domain: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    client_meta: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    last_heartbeat_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class CollaborationSoftLock(Base):
+    __tablename__ = "collaboration_soft_locks"
+    __table_args__ = (
+        UniqueConstraint(
+            "org_id",
+            "project_id",
+            "resource_path",
+            name="collaboration_soft_lock_resource_unique",
+        ),
+        Index("ix_collaboration_soft_locks_org_project", "org_id", "project_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orgs.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+    resource_path: Mapped[str] = mapped_column(Text, nullable=False)
+    holder_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    holder_session_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    advisory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class SceneGraphSnapshot(Base):
     __tablename__ = "scene_graph_snapshots"
     __table_args__ = (
@@ -606,6 +756,7 @@ class SceneGraphSnapshot(Base):
         UUID(as_uuid=True), ForeignKey("hos_commits.id", ondelete="CASCADE")
     )
     snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    snapshot_format: Mapped[str] = mapped_column(Text, nullable=False, default="json")
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )

@@ -15,6 +15,7 @@ from app.models.schemas import (
     EventPublishRequest,
     EventPublishResponse,
 )
+from app.services.event_taxonomy import validate_event_type
 from app.services.events import EventPublisher
 
 router = APIRouter(prefix="/v1/events", tags=["events"])
@@ -35,6 +36,11 @@ def publish_event(
     )
     if project is None:
         raise _err("project_not_found", 404)
+
+    try:
+        validate_event_type(body.event_type)
+    except ValueError:
+        raise _err("unknown_event_type", 422)
 
     pub = EventPublisher(db)
     row, created = pub.publish(

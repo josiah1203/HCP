@@ -190,12 +190,47 @@ class HosBranchOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class HosObjectSnapshotIn(BaseModel):
+    object_path: str
+    object_id: uuid.UUID | None = None
+    version_id: uuid.UUID | None = None
+    content_hash: str | None = None
+    hnf_type: str
+    domain: str | None = None
+    refs: list[str] = Field(default_factory=list)
+    properties: dict = Field(default_factory=dict)
+    snapshot_version: int = Field(default=1, ge=1)
+
+
+class HosObjectSnapshotOut(BaseModel):
+    id: uuid.UUID
+    object_path: str
+    object_id: uuid.UUID | None = None
+    version_id: uuid.UUID | None = None
+    content_hash: str | None = None
+    hnf_type: str
+    domain: str | None = None
+    refs: list[str] = Field(default_factory=list)
+    properties: dict = Field(default_factory=dict)
+    snapshot_version: int
+
+    model_config = {"from_attributes": True}
+
+
+class HosObjectSnapshotListResponse(BaseModel):
+    data: list[HosObjectSnapshotOut]
+
+
 class HosCommitCreate(BaseModel):
     project_id: uuid.UUID
     branch_id: uuid.UUID
     message: str
     tree: dict = Field(default_factory=dict)
+    object_snapshots: list[HosObjectSnapshotIn] | None = None
+    tree_root_ref: str | None = None
     parent_commit_ids: list[uuid.UUID] | None = None
+    create_scene_snapshot: bool = False
+    scene_snapshot_format: str = "json"
 
 
 class HosCommitOut(BaseModel):
@@ -205,6 +240,7 @@ class HosCommitOut(BaseModel):
     branch_id: uuid.UUID | None = None
     message: str
     tree: dict
+    tree_root_ref: str | None = None
     created_by: uuid.UUID
     created_at: datetime
     parent_commit_ids: list[uuid.UUID] = Field(default_factory=list)
@@ -225,6 +261,7 @@ class HosDiffEntry(BaseModel):
     change_type: str
     from_value: dict | None = None
     to_value: dict | None = None
+    model: str | None = None
 
 
 class HosDiffResponse(BaseModel):
@@ -391,6 +428,8 @@ class SceneGraphEdgeUpsertResponse(BaseModel):
 class SceneGraphSnapshotCreateRequest(BaseModel):
     project_id: uuid.UUID
     commit_id: uuid.UUID
+    snapshot_format: str = "json"
+    snapshot_format: str = "json"
 
 
 class SceneGraphSnapshotOut(BaseModel):
@@ -399,6 +438,7 @@ class SceneGraphSnapshotOut(BaseModel):
     project_id: uuid.UUID
     commit_id: uuid.UUID
     snapshot: dict
+    snapshot_format: str = "json"
     created_by: uuid.UUID | None = None
     created_at: datetime
 
@@ -408,3 +448,105 @@ class SceneGraphSnapshotOut(BaseModel):
 class SceneGraphSnapshotResponse(BaseModel):
     snapshot: SceneGraphSnapshotOut
     deduped: bool = False
+
+
+class PresenceHeartbeatRequest(BaseModel):
+    project_id: uuid.UUID
+    session_id: str
+    resource_path: str | None = None
+    domain: str | None = None
+    client_meta: dict | None = None
+
+
+class PresenceOut(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    project_id: uuid.UUID
+    user_id: uuid.UUID
+    session_id: str
+    resource_path: str | None = None
+    domain: str | None = None
+    client_meta: dict | None = None
+    last_heartbeat_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PresenceHeartbeatResponse(BaseModel):
+    presence: PresenceOut
+    joined: bool = False
+
+
+class PresenceListResponse(BaseModel):
+    data: list[PresenceOut]
+
+
+class PresenceLeaveRequest(BaseModel):
+    project_id: uuid.UUID
+    session_id: str
+
+
+class PresenceLeaveResponse(BaseModel):
+    left: bool
+
+
+class SoftLockAcquireRequest(BaseModel):
+    project_id: uuid.UUID
+    resource_path: str
+    session_id: str | None = None
+    ttl_seconds: int = Field(default=300, ge=30, le=3600)
+
+
+class SoftLockOut(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    project_id: uuid.UUID
+    resource_path: str
+    holder_user_id: uuid.UUID
+    holder_session_id: str | None = None
+    advisory: bool
+    expires_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SoftLockAcquireResponse(BaseModel):
+    lock: SoftLockOut
+    acquired: bool
+    held_by_other: bool = False
+    existing_lock: SoftLockOut | None = None
+
+
+class SoftLockListResponse(BaseModel):
+    data: list[SoftLockOut]
+
+
+class CrossDomainAlertRequest(BaseModel):
+    project_id: uuid.UUID
+    alert_id: str
+    source_domain: str
+    target_domain: str
+    severity: str = "info"
+    message: str
+    context: dict | None = None
+
+
+class CrossDomainAlertResponse(BaseModel):
+    alert_id: str
+    published: bool = True
+
+
+class CrdtOperationRequest(BaseModel):
+    project_id: uuid.UUID
+    document_id: str
+    operation_id: str
+    envelope: dict
+
+
+class CrdtOperationResponse(BaseModel):
+    document_id: str
+    operation_id: str
+    envelope: dict
+    accepted: bool = True

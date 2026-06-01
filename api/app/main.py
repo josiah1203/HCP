@@ -9,6 +9,7 @@ from app.middleware.request_id import RequestIdMiddleware
 from app.routers import (
     auth,
     bom,
+    collaboration,
     events,
     graph,
     health,
@@ -36,6 +37,10 @@ app = FastAPI(
         {"name": "health", "description": "Health and readiness probes"},
         {"name": "hos", "description": "HOS version control (branches/commits/merge)"},
         {"name": "events", "description": "Event stream (poll/publish)"},
+        {
+            "name": "collaboration",
+            "description": "Presence (polling), advisory soft locks, cross-domain alerts",
+        },
         {"name": "scene", "description": "Component identity and scene graph"},
         {"name": "v2", "description": "HCP V2 API (breaking changes; stub endpoints)"},
     ],
@@ -55,6 +60,7 @@ app.include_router(graph.router)
 app.include_router(search.router)
 app.include_router(hos_version_control.router)
 app.include_router(events.router)
+app.include_router(collaboration.router)
 app.include_router(scene.router)
 app.include_router(v2_health)
 

@@ -26,6 +26,7 @@ from app.services.object_types import (
     infer_object_type,
     infer_representation,
 )
+from app.services.hnf import HnfService
 from app.services.tasks import enqueue_parse
 from infra.pal.factory import get_storage_provider
 from infra.pal.interfaces.storage import StorageProvider
@@ -169,6 +170,40 @@ class ObjectService:
         self.db.add(version)
         self.db.flush()
 
+        audit_metadata: dict = {
+            "content_hash": content_hash,
+            "deduplicated": deduplicated,
+            "domain": resolved_domain,
+            "representation": resolved_representation,
+            "source_tool": source_tool,
+        }
+        hnf_svc = HnfService(self.db)
+        hnf_body, hnf_warnings = hnf_svc.try_parse_upload_bytes(
+            file_bytes, filename=filename, content_type=content_type
+        )
+        if hnf_body is not None:
+            audit_metadata["hnf_detected"] = True
+            if hnf_warnings:
+                audit_metadata["hnf_validation_warnings"] = hnf_warnings
+            hnf_svc.upsert_document(
+                org_id=user.org_id,
+                project_id=project_id,
+                document_uri=hnf_body.get(
+                    "document_uri", f"hcp://{hw_object.id}/{filename}"
+                ),
+                document=hnf_body,
+            )
+        else:
+            upload_warnings = hnf_svc.validate_upload_metadata(
+                org_id=user.org_id,
+                version=version,
+                object_type=resolved_object_type,
+                domain=resolved_domain,
+                filename=filename,
+            )
+            if upload_warnings:
+                audit_metadata["hnf_snapshot_warnings"] = upload_warnings
+
         write_audit(
             self.db,
             org_id=user.org_id,
@@ -177,13 +212,7 @@ class ObjectService:
             event_type="version_created",
             actor_id=user.id,
             actor_email=user.email,
-            metadata={
-                "content_hash": content_hash,
-                "deduplicated": deduplicated,
-                "domain": resolved_domain,
-                "representation": resolved_representation,
-                "source_tool": source_tool,
-            },
+            metadata=audit_metadata,
         )
         self._events.publish(
             org_id=user.org_id,

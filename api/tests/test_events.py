@@ -54,6 +54,23 @@ def test_events_poll_emits_hos_commit_created(client):
     )
 
 
+def test_events_publish_rejects_unknown_event_type(client):
+    token = _login(client)
+    headers = _auth(token)
+    project_id = str(client.test_project.id)
+
+    resp = client.post(
+        "/v1/events/publish",
+        headers=headers,
+        json={
+            "project_id": project_id,
+            "event_type": "not_a_real_event",
+            "dedupe_key": "x:1",
+        },
+    )
+    assert resp.status_code == 422
+
+
 def test_events_poll_cursor_and_idempotent_publish(client):
     token = _login(client)
     headers = _auth(token)

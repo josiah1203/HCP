@@ -20,10 +20,27 @@ from app.models.schemas import (
     HosLogResponse,
     HosMergeOut,
     HosMergeRequest,
+    HosObjectSnapshotListResponse,
+    HosObjectSnapshotOut,
 )
 from app.services.hos_version_control import HosVersionControlService
 
 router = APIRouter(prefix="/v1/hos", tags=["hos"])
+
+
+def _commit_out(svc: HosVersionControlService, commit) -> HosCommitOut:
+    return HosCommitOut(
+        id=commit.id,
+        org_id=commit.org_id,
+        project_id=commit.project_id,
+        branch_id=commit.branch_id,
+        message=commit.message,
+        tree=commit.tree,
+        tree_root_ref=commit.tree_root_ref,
+        created_by=commit.created_by,
+        created_at=commit.created_at,
+        parent_commit_ids=svc._parent_ids(commit.id),
+    )
 
 
 def _err(code: str, status: int = 400) -> HTTPException:
@@ -83,26 +100,23 @@ def create_commit(
 ):
     svc = HosVersionControlService(db)
     try:
+        snapshots = None
+        if body.object_snapshots is not None:
+            snapshots = [s.model_dump(mode="json") for s in body.object_snapshots]
         commit = svc.commit(
             user=user,
             project_id=body.project_id,
             branch_id=body.branch_id,
             message=body.message,
             tree=body.tree,
+            object_snapshots=snapshots,
+            tree_root_ref=body.tree_root_ref,
             parent_commit_ids=body.parent_commit_ids,
+            create_scene_snapshot=body.create_scene_snapshot,
+            scene_snapshot_format=body.scene_snapshot_format,
         )
         db.commit()
-        return HosCommitOut(
-            id=commit.id,
-            org_id=commit.org_id,
-            project_id=commit.project_id,
-            branch_id=commit.branch_id,
-            message=commit.message,
-            tree=commit.tree,
-            created_by=commit.created_by,
-            created_at=commit.created_at,
-            parent_commit_ids=[],
-        )
+        return _commit_out(svc, commit)
     except ValueError as e:
         db.rollback()
         code = str(e)
@@ -128,25 +142,38 @@ def log(
         commits = svc.log(user=user, project_id=project_id, branch_id=branch_id, limit=limit)
         data: list[HosCommitOut] = []
         for c in commits:
-            data.append(
-                HosCommitOut(
-                    id=c.id,
-                    org_id=c.org_id,
-                    project_id=c.project_id,
-                    branch_id=c.branch_id,
-                    message=c.message,
-                    tree=c.tree,
-                    created_by=c.created_by,
-                    created_at=c.created_at,
-                    parent_commit_ids=[],
-                )
-            )
+            data.append(_commit_out(svc, c))
         return HosLogResponse(data=data)
     except ValueError as e:
         code = str(e)
         if code in ("project_not_found", "branch_not_found"):
             raise _err(code, 404)
         raise _err("log_failed", 400)
+
+
+@router.get(
+    "/commits/{commit_id}/snapshots",
+    response_model=HosObjectSnapshotListResponse,
+)
+def list_commit_snapshots(
+    commit_id: uuid.UUID,
+    project_id: uuid.UUID = Query(...),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    svc = HosVersionControlService(db)
+    try:
+        rows = svc.list_object_snapshots(
+            user=user, project_id=project_id, commit_id=commit_id
+        )
+        return HosObjectSnapshotListResponse(
+            data=[HosObjectSnapshotOut.model_validate(r) for r in rows]
+        )
+    except ValueError as e:
+        code = str(e)
+        if code in ("project_not_found", "commit_not_found"):
+            raise _err(code, 404)
+        raise _err("snapshots_list_failed", 400)
 
 
 @router.post("/diff", response_model=HosDiffResponse)

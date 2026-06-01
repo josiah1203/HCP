@@ -21,6 +21,71 @@ from app.models.db import (
 from app.services.event_taxonomy import EVENT_SCENE_GRAPH_SNAPSHOT_CREATED
 from app.services.events import EventPublisher
 
+_VALID_SNAPSHOT_FORMATS = frozenset({"json", "glb", "octree+json"})
+
+
+def build_protocol_snapshot(
+    *,
+    nodes: list[SceneGraphNode],
+    edges: list[SceneGraphEdge],
+    snapshot_format: str = "json",
+) -> dict[str, Any]:
+    """Align persisted snapshot JSON with hcp-sidecar-scenegraph.v0 shapes."""
+    fmt = snapshot_format if snapshot_format in _VALID_SNAPSHOT_FORMATS else "json"
+    legacy_nodes = [
+        {
+            "node_key": n.node_key,
+            "nodeId": n.node_key,
+            "identity_id": str(n.identity_id) if n.identity_id else None,
+            "transform": n.transform or {},
+            "metadata": n.metadata_ or None,
+        }
+        for n in nodes
+    ]
+    legacy_edges = [
+        {
+            "edge_key": e.edge_key,
+            "edgeId": e.edge_key,
+            "from_node_key": e.from_node_key,
+            "fromNodeId": e.from_node_key,
+            "to_node_key": e.to_node_key,
+            "toNodeId": e.to_node_key,
+            "constraint_type": e.constraint_type,
+            "edgeType": e.constraint_type,
+            "payload": e.payload or None,
+        }
+        for e in edges
+    ]
+    return {
+        "format": fmt,
+        "protocol": "hcp.rpc.v0",
+        "nodes": legacy_nodes,
+        "edges": legacy_edges,
+        "rpc": {
+            "nodes": [
+                {
+                    "nodeId": n.node_key,
+                    "nodeType": (n.metadata_ or {}).get("node_type", "node"),
+                    "attributes": {
+                        "transform": n.transform or {},
+                        **({} if not n.metadata_ else dict(n.metadata_)),
+                    },
+                }
+                for n in nodes
+            ],
+            "edges": [
+                {
+                    "edgeId": e.edge_key,
+                    "fromNodeId": e.from_node_key,
+                    "toNodeId": e.to_node_key,
+                    "edgeType": e.constraint_type,
+                    "attributes": e.payload or {},
+                }
+                for e in edges
+            ],
+        },
+    }
+
 
 class SceneGraphService:
     def __init__(self, db: Session) -> None:
@@ -230,6 +295,7 @@ class SceneGraphService:
         user: CurrentUser,
         project_id: uuid.UUID,
         commit_id: uuid.UUID,
+        snapshot_format: str = "json",
     ) -> tuple[SceneGraphSnapshot, bool]:
         self._require_editor(user)
         self._require_project(project_id, user.org_id)
@@ -271,33 +337,18 @@ class SceneGraphService:
             )
         )
 
-        snapshot_json: dict[str, Any] = {
-            "nodes": [
-                {
-                    "node_key": n.node_key,
-                    "identity_id": str(n.identity_id) if n.identity_id else None,
-                    "transform": n.transform or {},
-                    "metadata": n.metadata_ or None,
-                }
-                for n in nodes
-            ],
-            "edges": [
-                {
-                    "edge_key": e.edge_key,
-                    "from_node_key": e.from_node_key,
-                    "to_node_key": e.to_node_key,
-                    "constraint_type": e.constraint_type,
-                    "payload": e.payload or None,
-                }
-                for e in edges
-            ],
-        }
+        snapshot_json = build_protocol_snapshot(
+            nodes=nodes, edges=edges, snapshot_format=snapshot_format
+        )
 
         row = SceneGraphSnapshot(
             org_id=user.org_id,
             project_id=project_id,
             commit_id=commit_id,
             snapshot=snapshot_json,
+            snapshot_format=snapshot_format
+            if snapshot_format in _VALID_SNAPSHOT_FORMATS
+            else "json",
             created_by=user.id,
         )
         self.db.add(row)
@@ -319,7 +370,10 @@ class SceneGraphService:
             created = False
 
         tree = dict(commit.tree or {})
-        tree["scene_graph_snapshot"] = {"snapshot_id": str(row.id)}
+        tree["scene_graph_snapshot"] = {
+            "snapshot_id": str(row.id),
+            "snapshot_format": row.snapshot_format,
+        }
         commit.tree = tree
 
         self.db.add(
