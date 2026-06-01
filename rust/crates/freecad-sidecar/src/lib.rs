@@ -1,11 +1,17 @@
+mod host_bridge;
+
 use std::sync::{Arc, Mutex};
 
-use hnf_adapter::{HnfDocument, HnfMutation, SceneGraphDeltas, ToolAdapter, ToolArtifact};
-use serde::{Deserialize, Serialize};
+use hnf_adapter_sdk::{HnfDocument, HnfMutation, SceneGraphDeltas, ToolAdapter, ToolArtifact};
+use hnf_freecad::FreecadAdapterError;
+pub use host_bridge::{select_engine_bridge, SubprocessFreecadEngineBridge};
+pub use hnf_freecad::{
+    map_mutation_to_deltas, MechanicalConstraintUpsert, MechanicalSolidUpsert,
+};
 use serde_json::{json, Value};
 use sidecar_protocol::{
     method, ApplyMutationsError, ApplyMutationsParams, ApplyMutationsResult, ExportArtifact, ExportParams,
-    ExportResult, OkResult, ProjectOpenParams, SceneGraphEdge, SceneGraphNode,
+    ExportResult, OkResult, ProjectOpenParams,
 };
 use sidecar_runner::{Handler, RunnerConfig, SidecarRunner};
 use thiserror::Error;
@@ -29,22 +35,6 @@ impl SidecarState {
     pub fn set_project(&mut self, project: ProjectContext) {
         self.project = Some(project);
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MechanicalSolidUpsert {
-    pub solid_id: String,
-    pub name: String,
-    pub material: String,
-    pub volume_mm3: f64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MechanicalConstraintUpsert {
-    pub constraint_id: String,
-    pub from_solid_id: String,
-    pub to_solid_id: String,
-    pub constraint_type: String,
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -101,7 +91,7 @@ impl ToolAdapter for MechanicalMutationAdapter {
         _document: &mut HnfDocument,
         mutation: &HnfMutation,
     ) -> Result<SceneGraphDeltas, Self::Error> {
-        map_mutation_to_deltas(mutation)
+        map_mutation_to_deltas(mutation).map_err(adapter_err_to_sidecar)
     }
 
     fn export(
@@ -114,57 +104,10 @@ impl ToolAdapter for MechanicalMutationAdapter {
     }
 }
 
-pub fn map_mutation_to_deltas(mutation: &HnfMutation) -> Result<SceneGraphDeltas, FreecadSidecarError> {
-    let commit_id = mutation
-        .payload
-        .get("commitId")
-        .and_then(Value::as_str)
-        .unwrap_or("freecad-local-commit")
-        .to_string();
-
-    match mutation.kind.as_str() {
-        "mechanical/solid/upsert" => {
-            let solid: MechanicalSolidUpsert = serde_json::from_value(mutation.payload.clone())
-                .map_err(|err| FreecadSidecarError::InvalidPayload(err.to_string()))?;
-
-            let node = SceneGraphNode {
-                nodeId: solid.solid_id.clone(),
-                nodeType: "mechanical.solid".to_string(),
-                attributes: json!({
-                    "name": solid.name,
-                    "material": solid.material,
-                    "volumeMm3": solid.volume_mm3
-                }),
-            };
-
-            Ok(SceneGraphDeltas {
-                commit_id,
-                nodes: vec![node],
-                edges: vec![],
-            })
-        }
-        "mechanical/constraint/upsert" => {
-            let constraint: MechanicalConstraintUpsert =
-                serde_json::from_value(mutation.payload.clone())
-                    .map_err(|err| FreecadSidecarError::InvalidPayload(err.to_string()))?;
-
-            let edge = SceneGraphEdge {
-                edgeId: constraint.constraint_id,
-                fromNodeId: constraint.from_solid_id,
-                toNodeId: constraint.to_solid_id,
-                edgeType: "mechanical.constraint".to_string(),
-                attributes: json!({
-                    "constraintType": constraint.constraint_type
-                }),
-            };
-
-            Ok(SceneGraphDeltas {
-                commit_id,
-                nodes: vec![],
-                edges: vec![edge],
-            })
-        }
-        other => Err(FreecadSidecarError::UnsupportedMutation(other.to_string())),
+fn adapter_err_to_sidecar(err: FreecadAdapterError) -> FreecadSidecarError {
+    match err {
+        FreecadAdapterError::UnsupportedMutation(k) => FreecadSidecarError::UnsupportedMutation(k),
+        FreecadAdapterError::InvalidPayload(m) => FreecadSidecarError::InvalidPayload(m),
     }
 }
 

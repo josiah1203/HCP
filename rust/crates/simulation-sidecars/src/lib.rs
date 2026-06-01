@@ -257,11 +257,37 @@ pub fn register_protocol_handlers<R>(
     runner.register_handler(format!("simulation/{}/export", engine.as_str()), export_handler);
 }
 
+fn which_on_path(program: &str) -> Option<String> {
+    let path_var = std::env::var_os("PATH")?;
+    std::env::split_paths(&path_var)
+        .map(|dir| dir.join(program))
+        .find(|candidate| candidate.is_file())
+        .map(|p| p.to_string_lossy().into_owned())
+}
+
+fn host_default_command(engine: SimulationEngine) -> Option<(String, Vec<String>)> {
+    if !hnf_adapter_sdk::host_env::sim_use_host() {
+        return None;
+    }
+    let program = match engine {
+        SimulationEngine::Ngspice => "ngspice",
+        SimulationEngine::OpenEms => "openems",
+        SimulationEngine::Elmer => "ElmerSolver",
+    };
+    which_on_path(program).map(|path| (path, vec!["-v".to_string()]))
+}
+
 pub fn build_command_spec(config: &SimulationConfig) -> Result<CommandSpec, SimulationAdapterError> {
     let (program, args) = match &config.command {
         Some(cmd) if !cmd.is_empty() => (cmd[0].clone(), cmd[1..].to_vec()),
         Some(_) => return Err(SimulationAdapterError::InvalidCommand),
-        None => default_stub_command(config.engine, &config.job_id),
+        None => {
+            if let Some(host) = host_default_command(config.engine) {
+                host
+            } else {
+                default_stub_command(config.engine, &config.job_id)
+            }
+        }
     };
 
     let mut env = BTreeMap::new();
@@ -481,6 +507,18 @@ mod tests {
         assert_eq!(result.status, "failed");
         assert_eq!(result.exit_code, 2);
         assert_eq!(result.artifacts[0].role, "solver-log");
+    }
+
+    #[test]
+    fn host_command_uses_stub_when_flag_off() {
+        std::env::remove_var("HCP_SIM_USE_HOST");
+        let payload = json!({
+            "engine": "ngspice",
+            "job_id": "job-host-off"
+        });
+        let cfg = SimulationConfig::from_mutation_payload(&payload).expect("cfg");
+        let spec = build_command_spec(&cfg).expect("spec");
+        assert_eq!(spec.program, "sh");
     }
 
     #[test]

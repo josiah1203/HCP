@@ -1,0 +1,23 @@
+# Apache 2.0 adapter workspace — mirrors future hcp-adapters org layout.
+# HCP sidecars depend on these via path until crates.io publish (v0.1.0).
+[workspace]
+members = [
+  "crates/hnf-adapter-sdk",
+  "crates/hnf-kicad",
+  "crates/hnf-freecad",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+version = "0.1.0"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+sidecar-protocol = { path = "../rust/crates/sidecar-protocol" }
+
+[profile.dev]
+incremental = true

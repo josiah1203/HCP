@@ -18,4 +18,5 @@ serde_json.workspace = true
 thiserror.workspace = true
 sidecar-protocol = { path = "../sidecar-protocol" }
 sidecar-runner = { path = "../sidecar-runner" }
-hnf-adapter = { path = "../hnf-adapter" }
+hnf-adapter-sdk = { path = "../../../adapters/crates/hnf-adapter-sdk" }
+hnf-kicad = { path = "../../../adapters/crates/hnf-kicad" }

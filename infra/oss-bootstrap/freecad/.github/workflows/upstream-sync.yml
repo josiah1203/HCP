@@ -1,0 +1,56 @@
+# Copy into hcp-oss/freecad after bootstrap: .github/workflows/upstream-sync.yml
+name: upstream-sync
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "hcp-oss-bot"
+          git config user.email "hcp-oss-bot@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          if ! git remote get-url upstream >/dev/null 2>&1; then
+            git remote add upstream https://github.com/FreeCAD/FreeCAD.git
+          fi
+          git fetch upstream --tags
+
+      - name: Fast-forward upstream/main
+        run: |
+          git checkout upstream/main 2>/dev/null || git checkout -b upstream/main
+          git merge --ff-only upstream/main
+          git push origin upstream/main
+
+      - name: Open PR upstream/main → hcp/integration
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout hcp/integration
+          git merge origin/upstream/main --no-commit --no-ff || true
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes to merge"
+            exit 0
+          fi
+          git merge --abort 2>/dev/null || true
+          gh pr create \
+            --base hcp/integration \
+            --head upstream/main \
+            --title "chore(upstream): sync FreeCAD upstream/main" \
+            --body "Automated weekly upstream sync. Review headless entry conflicts before merge." \
+            --label upstream-sync \
+            || echo "PR may already exist"

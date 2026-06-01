@@ -1,57 +1,86 @@
 # OSS host dependencies (Phase 0.5 sidecars)
 
-v7.1 **porting** means Rust sidecar frontends that run **existing OSS engines as separate host processes**, with HNF adapter glue replacing direct file I/O at the protocol boundary. This monorepo does **not** vendor KiCad, FreeCAD, OCCT, ngspice, OpenEMS, or Elmer source trees unless explicitly added later.
+v7.1 **porting** means Rust sidecar frontends that run **existing OSS engines as separate host processes**, with HNF adapter glue replacing direct file I/O at the protocol boundary. This monorepo does **not** vendor KiCad, FreeCAD, OCCT, ngspice, OpenEMS, or Elmer source trees.
+
+Fork bootstrap templates live under [`infra/oss-bootstrap/`](../infra/oss-bootstrap/). Apache adapter crates live under [`adapters/`](../adapters/) (future `hcp-adapters/*` org).
 
 ## Summary table
 
 | Tool | In-repo code | Runtime dependency | Integration status |
 |------|----------------|-------------------|-------------------|
-| **KiCad 8.x** | `rust/crates/kicad-sidecar`, `parser/parsers/kicad_*`, KiCad fixtures | `kicad-cli` / headless KiCad on `PATH` (not bundled) | **Protocol + stub binding** — JSON-RPC handlers, mutation→scene-graph mapping, `StubKiCadBinding` in production `build_stdio_runner()`; no subprocess to KiCad yet |
-| **FreeCAD 1.x** | `rust/crates/freecad-sidecar` | `freecadcmd` or FreeCAD batch on `PATH` | **Protocol + noop bridge** — `NoopFreecadEngineBridge`; mechanical mutations map to scene graph without launching FreeCAD |
-| **OCCT 7.x** | None (no OCCT crate or submodule) | Via FreeCAD build or standalone OCCT install | **Not integrated** — mechanical domain uses HNF mutation payloads only; STEP/IGES via future FreeCAD/OCCT subprocess |
-| **ngspice** | `rust/crates/simulation-sidecars` bin `ngspice` | `ngspice` on `PATH` when `command` set in payload | **Subprocess runner** — default is `sh -lc printf stub-run…`; set `simulation.command` to `["ngspice", …]` for real runs |
-| **OpenEMS** | `simulation-sidecars` bin `openems` | OpenEMS install on host | Same as ngspice — stub default, real via `command` override |
-| **Elmer** | `simulation-sidecars` bin `elmer` | Elmer FEM solver on host | Same as ngspice — stub default, real via `command` override |
+| **KiCad 8.x** | `rust/crates/kicad-sidecar`, `adapters/crates/hnf-kicad`, `parser/parsers/kicad_*` | `kicad-cli` on `PATH` (from [`hcp-oss/kicad`](https://github.com/hcp-oss/kicad) `hcp/integration`) | **Subprocess + stub** — `SubprocessKiCadBinding` when `HCP_USE_HOST_OSS=1`; `StubKiCadBinding` default (CI) |
+| **FreeCAD 1.x** | `rust/crates/freecad-sidecar`, `adapters/crates/hnf-freecad` | `freecadcmd` on `PATH` (from [`hcp-oss/freecad`](https://github.com/hcp-oss/freecad)) | **Subprocess + noop** — `SubprocessFreecadEngineBridge` when `HCP_USE_HOST_OSS=1`; `NoopFreecadEngineBridge` default |
+| **OCCT 7.x** | None | Via FreeCAD build | **Not integrated** — STEP/BRep via FreeCAD subprocess |
+| **ngspice** | `rust/crates/simulation-sidecars` | `ngspice` on `PATH` when `HCP_SIM_USE_HOST=1` | **Subprocess** — auto-`which` or explicit `simulation.command` |
+| **OpenEMS** | same | `openems` on `PATH` when host flag set | same |
+| **Elmer** | same | `ElmerSolver` on `PATH` when host flag set | same |
+
+## Environment flags
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `HCP_USE_HOST_OSS` | `0` | `1` → KiCad/FreeCAD sidecars use host subprocess bindings |
+| `HCP_KICAD_CLI` | `kicad-cli` | KiCad CLI binary path |
+| `HCP_KICAD_TIMEOUT_SECS` | `120` | Reserved for long-running KiCad jobs |
+| `HCP_FREECAD_CMD` | `freecadcmd` | FreeCAD batch interpreter |
+| `HCP_SIM_USE_HOST` | `0` | `1` → simulation sidecars resolve `ngspice` / `openems` / `ElmerSolver` via `PATH` instead of stub `sh` |
+
+Host subprocess attempts emit `HCP_HOST_OSS:` JSON lines on stderr for regression harnesses.
 
 ## What the repo contains vs the host
 
 ### In monorepo
 
+- **Adapter workspace** (`adapters/`): `hnf-adapter-sdk`, `hnf-kicad`, `hnf-freecad` (mirrors `hcp-adapters/*`)
 - **JSON-RPC contracts:** `docs/protocol/jsonrpc/hcp-ide-sidecar.v0.json`, `hcp-sidecar-scenegraph.v0.json`
-- **Rust workspace** (`rust/`): `sidecar-protocol`, `sidecar-runner`, `hnf-adapter`, `kicad-sidecar`, `freecad-sidecar`, `simulation-sidecars`
-- **Parser interchange** (V1 path): Python parsers for `.kicad_sch` / `.kicad_pcb` under `parser/` — reads files uploaded to HOS; separate from live sidecar editing
-- **Regression:** mutation-hook driver (`scripts/regression/mutation_hook.py`) exercises sidecars over stdio; roundtrip/DRC/simulation suite entrypoints remain skeletons
+- **Rust workspace** (`rust/`): sidecars + `hnf-adapter` (re-exports SDK for compatibility)
+- **OSS bootstrap:** `infra/oss-bootstrap/` — fork docs, upstream-sync workflows, `bootstrap-repo.sh` for KiCad/FreeCAD
+- **Parser interchange:** Python parsers under `parser/` — file upload path separate from live sidecars
 
 ### On the host (install separately)
 
-| Package | Typical binary | Used by |
-|---------|----------------|---------|
-| KiCad 8.x | `kicad-cli` | Future `KiCadSubprocessBinding` (not wired in `main` today) |
-| FreeCAD 1.x | `freecadcmd` | Future `FreecadEngineBridge` implementation |
-| OCCT | (inside FreeCAD or dev libs) | BRep/STEP — Phase 0 full plan, not in repo |
-| ngspice | `ngspice` | `simulation-sidecars` when `command` provided |
-| OpenEMS | project-specific launcher | same |
-| Elmer | `ElmerSolver` / `ElmerGrid` | same |
+| Package | Binary | Build from |
+|---------|--------|------------|
+| KiCad 8.x | `kicad-cli` | `hcp-oss/kicad` branch `hcp/integration` — see `infra/oss-bootstrap/kicad/bootstrap-repo.sh` |
+| FreeCAD 1.x | `freecadcmd` | `hcp-oss/freecad` — see `infra/oss-bootstrap/freecad/bootstrap-repo.sh` |
+| ngspice / OpenEMS / Elmer | solver binaries | Upstream or distro packages |
 
 ## Subprocess paths
 
-- **Simulation sidecars:** `SystemSubprocessRunner` runs `std::process::Command` with program/args from `SimulationConfig.command`, or the built-in stub (`sh -lc printf 'stub-run …'`).
-- **KiCad / FreeCAD sidecars:** No OSS subprocess spawn in release binaries today; mutations are translated in-process to scene-graph deltas (deterministic for regression).
+- **KiCad:** `SubprocessKiCadBinding` probes `kicad-cli version`, stages under `workspaceRoot`, maps mutations in-process (headless mutation API on fork roadmap).
+- **FreeCAD:** `SubprocessFreecadEngineBridge` probes `freecadcmd --version` on `hcp/project/open`.
+- **Simulation:** `SystemSubprocessRunner` runs discovered or configured commands.
 
-## Gaps for real OSS integration
+## CI vs local dev
 
-1. **KiCad:** Implement `SubprocessKiCadBinding` (env e.g. `HCP_KICAD_CLI`) calling headless export/DRC/mutation APIs; keep stub for CI.
-2. **FreeCAD:** Replace `NoopFreecadEngineBridge` with `freecadcmd` driver + FCStd staging.
-3. **OCCT:** No direct sidecar; depend on FreeCAD/OCCT host install for STEP/BRep.
-4. **Simulators:** Default discovery (`which ngspice`) behind `HCP_SIM_USE_HOST=1` optional flag; document golden corpora for simulation-stability suite.
-5. **Import pipeline (v7.1 beta):** Legacy import branches + corpus testing — not implemented in API/CLI yet (see `docs/PHASE_0.5.md` gaps).
+| Mode | Flags | Behavior |
+|------|-------|----------|
+| CI (default) | unset | Stubs only — no KiCad/FreeCAD/ngspice required |
+| Local host OSS | `HCP_USE_HOST_OSS=1` | KiCad + FreeCAD probes + trace events |
+| Local sim | `HCP_SIM_USE_HOST=1` | Real solver binaries when on `PATH` |
+
+Optional CI job: install KiCad/FreeCAD on runner, set flags, run `cargo test` subset.
 
 ## Verify sidecars locally
 
 ```bash
 source "$HOME/.cargo/env"
-cd rust && cargo build -p kicad-sidecar -p freecad-sidecar -p simulation-sidecars
+cd adapters && cargo test
+cd ../rust && cargo test
+
+# Stub mode (CI default)
 python3 scripts/regression/run_suite.py mutation-hook \
   --seed scripts/regression/fixtures/minimal_seed.json \
   --mutations 4
+
+# Host OSS (requires built forks on PATH)
+export HCP_USE_HOST_OSS=1
+export HCP_SIM_USE_HOST=1
+cd rust && cargo test -p kicad-sidecar -p freecad-sidecar -p simulation-sidecars
 ```
+
+## Remaining gaps (post Phase B)
+
+1. Full headless mutation/export scripts on `hcp-oss/*` `hcp/integration` branches.
+2. Publish `hnf-*` crates to crates.io / git tags; switch sidecars from path to versioned deps.
+3. Import pipeline + roundtrip/DRC/sim-stability regression (see `docs/PHASE_0.5.md`).

@@ -3,26 +3,6 @@
 version = 4
 
 [[package]]
-name = "freecad-sidecar"
-version = "0.1.0"
-dependencies = [
- "hnf-adapter-sdk",
- "hnf-freecad",
- "serde",
- "serde_json",
- "sidecar-protocol",
- "sidecar-runner",
- "thiserror",
-]
-
-[[package]]
-name = "hnf-adapter"
-version = "0.1.0"
-dependencies = [
- "hnf-adapter-sdk",
-]
-
-[[package]]
 name = "hnf-adapter-sdk"
 version = "0.1.0"
 dependencies = [
@@ -57,19 +37,6 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
-
-[[package]]
-name = "kicad-sidecar"
-version = "0.1.0"
-dependencies = [
- "hnf-adapter-sdk",
- "hnf-kicad",
- "serde",
- "serde_json",
- "sidecar-protocol",
- "sidecar-runner",
- "thiserror",
-]
 
 [[package]]
 name = "memchr"
@@ -144,27 +111,6 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "sidecar-runner"
-version = "0.1.0"
-dependencies = [
- "serde_json",
- "sidecar-protocol",
- "thiserror",
-]
-
-[[package]]
-name = "simulation-sidecars"
-version = "0.1.0"
-dependencies = [
- "hnf-adapter-sdk",
- "serde",
- "serde_json",
- "sidecar-protocol",
- "sidecar-runner",
- "thiserror",
 ]
 
 [[package]]

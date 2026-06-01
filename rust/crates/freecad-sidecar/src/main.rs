@@ -2,9 +2,7 @@ use std::collections::BTreeMap;
 use std::io;
 use std::sync::{Arc, Mutex};
 
-use freecad_sidecar::{
-    build_runner, MechanicalMutationAdapter, NoopFreecadEngineBridge, SidecarState,
-};
+use freecad_sidecar::{build_runner, select_engine_bridge, MechanicalMutationAdapter, SidecarState};
 use sidecar_protocol::Capabilities;
 use sidecar_runner::RunnerConfig;
 
@@ -29,7 +27,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         },
         state,
         Arc::new(MechanicalMutationAdapter),
-        Arc::new(NoopFreecadEngineBridge),
+        select_engine_bridge(),
     );
 
     let stdin = io::stdin();

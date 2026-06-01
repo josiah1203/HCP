@@ -1,11 +1,15 @@
+mod host_binding;
+
 use std::sync::{Arc, Mutex};
 
-use hnf_adapter::SceneGraphDeltas;
+use hnf_adapter_sdk::SceneGraphDeltas;
+pub use host_binding::{select_kicad_binding, SubprocessKiCadBinding};
+pub use hnf_kicad::map_mutation_to_scene_delta;
 use serde_json::{json, Value};
 use sidecar_protocol::{
     method, ApplyMutationsError, ApplyMutationsParams, ApplyMutationsResult, Capabilities,
     ExportArtifact, ExportParams, ExportResult, JsonRpcError, Mutation, OkResult, ProjectOpenParams,
-    SceneGraphEdge, SceneGraphNode, SceneGraphUpsertEdgesParams, SceneGraphUpsertNodesParams,
+    SceneGraphUpsertEdgesParams, SceneGraphUpsertNodesParams,
     SceneGraphUpsertResult,
 };
 use sidecar_runner::{Handler, RunnerConfig, SidecarRunner};
@@ -208,42 +212,6 @@ impl KiCadSidecar {
     }
 }
 
-pub fn map_mutation_to_scene_delta(document_uri: &str, index: usize, mutation: &Mutation) -> SceneGraphDeltas {
-    let safe_kind = mutation.kind.replace('/', ".").replace(' ', "_");
-    let commit_id = format!("{document_uri}:{index}");
-    let node_id = format!("node:{safe_kind}:{index}");
-    let edge_id = format!("edge:{safe_kind}:{index}");
-    SceneGraphDeltas {
-        commit_id,
-        nodes: vec![SceneGraphNode {
-            nodeId: node_id.clone(),
-            nodeType: map_mutation_kind_to_node_type(&mutation.kind).to_string(),
-            attributes: json!({
-                "kind": mutation.kind,
-                "payload": mutation.payload,
-                "index": index
-            }),
-        }],
-        edges: vec![SceneGraphEdge {
-            edgeId: edge_id,
-            fromNodeId: format!("doc:{document_uri}"),
-            toNodeId: node_id,
-            edgeType: "applies_mutation".to_string(),
-            attributes: json!({ "kind": mutation.kind }),
-        }],
-    }
-}
-
-fn map_mutation_kind_to_node_type(kind: &str) -> &'static str {
-    if kind.starts_with("schematic.") {
-        "kicad.schematic.element"
-    } else if kind.starts_with("pcb.") {
-        "kicad.pcb.element"
-    } else {
-        "kicad.mutation"
-    }
-}
-
 fn parse_params<T: serde::de::DeserializeOwned>(params: Value) -> Result<T, JsonRpcError> {
     serde_json::from_value(params).map_err(invalid_params_error)
 }
@@ -313,10 +281,7 @@ fn emit_scene_trace(method: &str, params: &impl serde::Serialize) {
 pub fn build_stdio_runner() -> SidecarRunner {
     use std::collections::BTreeMap;
 
-    let sidecar = KiCadSidecar::new(
-        Arc::new(StubKiCadBinding),
-        Arc::new(TracingSceneGraph),
-    );
+    let sidecar = KiCadSidecar::new(select_kicad_binding(), Arc::new(TracingSceneGraph));
     let mut runner = SidecarRunner::new(RunnerConfig {
         sidecar_name: "kicad".to_string(),
         sidecar_version: env!("CARGO_PKG_VERSION").to_string(),
