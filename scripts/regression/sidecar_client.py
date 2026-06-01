@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -121,4 +122,34 @@ class SidecarSession:
         return self.call(
             "hcp/document/applyMutations",
             {"documentUri": document_uri, "mutations": mutations},
+        )
+
+    def wait_for_scene_traces(
+        self,
+        *,
+        node_upserts: int = 0,
+        edge_upserts: int = 0,
+        timeout_s: float = 5.0,
+        poll_s: float = 0.01,
+    ) -> None:
+        """Wait until stderr HCP_TRACE lines for scene graph upserts are drained."""
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            nodes = sum(
+                1
+                for t in self.scene_traces
+                if t.get("method") == "hcp/sceneGraph/upsertNodes"
+            )
+            edges = sum(
+                1
+                for t in self.scene_traces
+                if t.get("method") == "hcp/sceneGraph/upsertEdges"
+            )
+            if nodes >= node_upserts and edges >= edge_upserts:
+                return
+            time.sleep(poll_s)
+        raise TimeoutError(
+            f"timed out waiting for scene traces "
+            f"(nodes={node_upserts}, edges={edge_upserts}, got "
+            f"{len(self.scene_traces)} traces)"
         )

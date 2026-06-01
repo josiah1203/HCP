@@ -190,6 +190,10 @@ def _run_kicad_sidecar(
             document_uri=document_uri,
             mutations=mutations,
         )
+        session.wait_for_scene_traces(
+            node_upserts=len(mutations),
+            edge_upserts=len(mutations),
+        )
 
         expected = _expected_kicad_upserts(document_uri, mutations)
         node_traces = [
