@@ -65,14 +65,14 @@ Run against a staging API with two test users (`user-a`, `user-b`) and a shared 
 export HCP_API_URL=https://staging.example HCP_TOKEN_A=... PROJECT_ID=...
 
 for i in $(seq 1 1200); do
-  curl -sf -X POST "$HCP_API_URL/v1/collaboration/presence" \
+  curl -sf -X POST "$HCP_API_URL/v1/collaboration/presence/heartbeat" \
     -H "Authorization: Bearer $HCP_TOKEN_A" \
     -H "Content-Type: application/json" \
-    -d "{\"projectId\":\"$PROJECT_ID\",\"status\":\"active\"}" >/dev/null
-  curl -sf -X POST "$HCP_API_URL/v1/collaboration/locks" \
+    -d "{\"project_id\":\"$PROJECT_ID\",\"session_id\":\"soak-a\",\"resource_path\":\"doc/main\"}" >/dev/null
+  curl -sf -X POST "$HCP_API_URL/v1/collaboration/locks/acquire" \
     -H "Authorization: Bearer $HCP_TOKEN_A" \
     -H "Content-Type: application/json" \
-    -d "{\"projectId\":\"$PROJECT_ID\",\"resourceId\":\"doc/main\",\"ttlSeconds\":30}" >/dev/null
+    -d "{\"project_id\":\"$PROJECT_ID\",\"resource_path\":\"doc/main\",\"session_id\":\"soak-a\",\"ttl_seconds\":30}" >/dev/null
   sleep 2
 done
 ```

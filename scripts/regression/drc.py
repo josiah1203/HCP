@@ -13,8 +13,8 @@ from common import (
 )
 
 __all__ = [
+    "derive_violations_from_mutations",
     "normalize_violations",
-    "violations_from_scene_traces",
     "run_drc_suite",
 ]
 from sidecar_client import SidecarSession
@@ -94,6 +94,9 @@ def _golden_for_case(goldens: dict[str, Any], case_id: str) -> dict[str, Any] | 
 
 
 def run_drc_suite(*, corpus: Path, goldens: Path) -> dict[str, Any]:
+    from mutation_hook import ensure_sidecars_built
+
+    ensure_sidecars_built()
     manifest = load_manifest(corpus)
     golden_index = load_goldens(goldens)
     corpus_dir = corpus if corpus.is_dir() else corpus.parent
