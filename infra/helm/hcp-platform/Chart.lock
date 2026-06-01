@@ -1,0 +1,15 @@
+dependencies:
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 15.5.38
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 20.6.2
+- name: minio
+  repository: https://charts.bitnami.com/bitnami
+  version: 14.8.5
+- name: hcp-api
+  repository: file://../hcp-api
+  version: 0.2.0
+digest: sha256:ac76be2ff89bcdb81c001201ed8f28ed97549ba234f90f5a493a01019dcbd403
+generated: "2026-06-01T13:00:19.878575-05:00"

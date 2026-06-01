@@ -1,10 +1,22 @@
 apiVersion: v2
 name: hcp-platform
-description: HCP on-premises platform umbrella chart
+description: HCP on-premises platform umbrella chart (Postgres, Redis, MinIO, API, parser)
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "0.1.0"
 dependencies:
+  - name: postgresql
+    version: "15.5.38"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "20.6.2"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: minio
+    version: "14.8.5"
+    repository: https://charts.bitnami.com/bitnami
+    condition: minio.enabled
   - name: hcp-api
-    version: 0.1.0
+    version: 0.2.0
     repository: "file://../hcp-api"

@@ -18,12 +18,30 @@ ingress:
         - path: /
           pathType: Prefix
 
+credentialsSecret: hcp-credentials
+
+database:
+  host: postgres
+
 env:
   HCP_PROVIDER: onprem
   HCP_ENV: dev
-  MINIO_ENDPOINT: http://minio.hcp.svc.cluster.local:9000
-  MINIO_BUCKET: hcp-local
-  REDIS_URL: redis://redis.hcp.svc.cluster.local:6379/0
+
+parser:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: hcp-parser
+    tag: latest
+    pullPolicy: IfNotPresent
+  queue: hcp.parse
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
 resources:
   requests:

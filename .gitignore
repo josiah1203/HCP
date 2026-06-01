@@ -40,3 +40,9 @@ minio-data/
 # Rust / regression artifacts
 rust/target/
 out/
+
+# Helm vendored charts (regenerate: helm dependency update)
+infra/helm/**/charts/
+
+# Optional local helm binary for validate scripts
+.tools/

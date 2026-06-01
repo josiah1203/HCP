@@ -1,0 +1,29 @@
+# kind-local profile — use with infra/kind/install-hcp.sh
+global:
+  environment: kind
+
+postgresql:
+  primary:
+    persistence:
+      size: 2Gi
+
+minio:
+  persistence:
+    size: 2Gi
+
+backup:
+  schedule: "0 * * * *"
+  persistence:
+    size: 1Gi
+
+hcp-api:
+  image:
+    repository: hcp-api
+    tag: local
+    pullPolicy: IfNotPresent
+  parser:
+    enabled: true
+    image:
+      repository: hcp-parser
+      tag: local
+      pullPolicy: IfNotPresent

@@ -1,0 +1,72 @@
+{{- if .Values.backup.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-pg-backups
+  namespace: {{ include "hcp-platform.namespace" . }}
+  labels:
+    app.kubernetes.io/part-of: hcp-platform
+    app.kubernetes.io/component: backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.backup.persistence.size }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-postgres-backup
+  namespace: {{ include "hcp-platform.namespace" . }}
+  labels:
+    app.kubernetes.io/part-of: hcp-platform
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-dump
+              image: postgres:15-alpine
+              env:
+                - name: PGHOST
+                  value: {{ include "hcp-platform.postgresHost" . | quote }}
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: hcp-credentials
+                      key: POSTGRES_USER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: hcp-credentials
+                      key: POSTGRES_PASSWORD
+                - name: PGDATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: hcp-credentials
+                      key: POSTGRES_DB
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+                  OUT="/backups/hcp-${STAMP}.sql.gz"
+                  pg_dump --no-owner --no-acl | gzip -c > "${OUT}"
+                  echo "backup written ${OUT}"
+                  find /backups -name 'hcp-*.sql.gz' -mtime +{{ .Values.backup.retentionDays }} -delete
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: {{ .Release.Name }}-pg-backups
+{{- end }}

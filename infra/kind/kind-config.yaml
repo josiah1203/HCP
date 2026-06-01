@@ -1,0 +1,18 @@
+# Local kind cluster for HCP Phase 0.5 (single control-plane node).
+# Maps host :8000 -> NodePort 30080 for optional in-cluster ingress-less API access.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: hcp-local
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8000
+        listenAddress: "127.0.0.1"
+        protocol: TCP

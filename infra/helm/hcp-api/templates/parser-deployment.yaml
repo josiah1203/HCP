@@ -1,20 +1,24 @@
+{{- if .Values.parser.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "hcp-api.fullname" . }}
+  name: {{ include "hcp-api.fullname" . }}-parser
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "hcp-api.labels" . | nindent 4 }}
+    app.kubernetes.io/component: parser
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.parser.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "hcp-api.name" . }}
+      app.kubernetes.io/name: {{ include "hcp-api.name" . }}-parser
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        {{- include "hcp-api.labels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ include "hcp-api.name" . }}-parser
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: parser
     spec:
       initContainers:
         - name: wait-postgres
@@ -35,18 +39,11 @@ spec:
           command:
             - sh
             - -c
-            - |
-              until pg_isready -h "$PGHOST" -U "$PGUSER"; do
-                echo "waiting for postgres at $PGHOST"
-                sleep 2
-              done
+            - until pg_isready -h "$PGHOST" -U "$PGUSER"; do sleep 2; done
       containers:
-        - name: api
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: 8000
+        - name: parser
+          image: "{{ .Values.parser.image.repository }}:{{ .Values.parser.image.tag }}"
+          imagePullPolicy: {{ .Values.parser.image.pullPolicy }}
           envFrom:
             - secretRef:
                 name: {{ .Values.credentialsSecret }}
@@ -57,17 +54,14 @@ spec:
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 5
+          command:
+            - celery
+            - -A
+            - worker.celery_app
+            - worker
+            - --loglevel=info
+            - -Q
+            - {{ .Values.parser.queue }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.parser.resources | nindent 12 }}
+{{- end }}

@@ -1,0 +1,36 @@
+{{- if and .Values.minio.enabled .Values.minioInit.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-minio-init
+  namespace: {{ include "hcp-platform.namespace" . }}
+  labels:
+    app.kubernetes.io/part-of: hcp-platform
+    app.kubernetes.io/component: minio-init
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:latest
+          envFrom:
+            - secretRef:
+                name: hcp-credentials
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              until mc alias set local "${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}"; do
+                echo "waiting for minio..."
+                sleep 3
+              done
+              mc mb -p "local/${MINIO_BUCKET}" || true
+              echo "bucket ready: ${MINIO_BUCKET}"
+{{- end }}

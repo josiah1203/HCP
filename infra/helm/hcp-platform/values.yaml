@@ -2,26 +2,88 @@ global:
   namespace: hcp
   environment: dev
 
-hcp-api:
-  replicaCount: 1
-  env:
-    HCP_PROVIDER: onprem
-    HCP_ENV: dev
-
-# External charts (install separately or add as dependencies in prod):
-# - Bitnami PostgreSQL / Redis
-# - MinIO operator or standalone MinIO
-# - HashiCorp Vault (optional)
-
-postgres:
+postgresql:
   enabled: true
-  host: postgres.hcp.svc.cluster.local
-
-minio:
-  enabled: true
-  endpoint: http://minio.hcp.svc.cluster.local:9000
-  bucket: hcp-local
+  fullnameOverride: postgres
+  auth:
+    username: hcp
+    password: hcp
+    database: hcp
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
 
 redis:
   enabled: true
-  url: redis://redis.hcp.svc.cluster.local:6379/0
+  fullnameOverride: redis
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: false
+
+minio:
+  enabled: true
+  fullnameOverride: minio
+  mode: standalone
+  auth:
+    rootUser: hcp
+    rootPassword: hcpsecret
+  defaultBuckets: hcp-local
+  persistence:
+    enabled: true
+    size: 10Gi
+
+minioInit:
+  enabled: true
+
+secrets:
+  create: true
+  jwtSecret: dev-only-change-in-production
+  postgresUser: hcp
+  postgresPassword: hcp
+  postgresDatabase: hcp
+  minioAccessKey: hcp
+  minioSecretKey: hcpsecret
+  minioBucket: hcp-local
+  minioRegion: us-east-1
+
+migrate:
+  enabled: true
+  backoffLimit: 6
+
+backup:
+  enabled: true
+  schedule: "0 */6 * * *"
+  retentionDays: 7
+  persistence:
+    size: 5Gi
+
+hcp-api:
+  replicaCount: 1
+  image:
+    repository: hcp-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  credentialsSecret: hcp-credentials
+  database:
+    host: postgres
+  env:
+    HCP_PROVIDER: onprem
+    HCP_ENV: dev
+  parser:
+    enabled: true
+    image:
+      repository: hcp-parser
+      tag: latest
+      pullPolicy: IfNotPresent
+    queue: hcp.parse
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
