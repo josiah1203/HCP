@@ -60,6 +60,6 @@ curl -X POST http://localhost:8000/v1/objects/upload \
 
 Engineering plan: `docs/HCP_Engineering_Plan.md` (sync from canonical spec).
 
-Phase 0.5 beta: [`docs/PHASE_0.5.md`](docs/PHASE_0.5.md), [`docs/OSS_HOST_DEPENDENCIES.md`](docs/OSS_HOST_DEPENDENCIES.md), [`docs/PUBLIC_ROADMAP.md`](docs/PUBLIC_ROADMAP.md).
+Phase 0.5 beta: [`docs/PHASE_0.5.md`](docs/PHASE_0.5.md), [`docs/OSS_HOST_DEPENDENCIES.md`](docs/OSS_HOST_DEPENDENCIES.md), [`docs/PUBLIC_ROADMAP.md`](docs/PUBLIC_ROADMAP.md). Legal/status stubs: [`docs/legal/PLACEHOLDER.md`](docs/legal/PLACEHOLDER.md), [`docs/ops/STATUS_PAGE.md`](docs/ops/STATUS_PAGE.md).
 
 Phase 1 gate: upload via PAL, SHA-256 dedup, JWT/API keys, RBAC, audit log, `docker-compose` local stack.
