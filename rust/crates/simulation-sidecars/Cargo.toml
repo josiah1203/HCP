@@ -1,0 +1,16 @@
+[package]
+name = "simulation-sidecars"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "simulation_sidecars"
+path = "src/lib.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+sidecar-protocol = { path = "../sidecar-protocol" }
+sidecar-runner = { path = "../sidecar-runner" }

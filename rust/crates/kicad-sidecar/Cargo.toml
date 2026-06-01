@@ -1,0 +1,28 @@
+[package]
+name = "kicad-sidecar"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "kicad_sidecar"
+path = "src/lib.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+sidecar-protocol = { path = "../sidecar-protocol" }
+sidecar-runner = { path = "../sidecar-runner" }
+[package]
+name = "kicad-sidecar"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hnf-adapter = { path = "../hnf-adapter" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sidecar-protocol = { path = "../sidecar-protocol" }
+sidecar-runner = { path = "../sidecar-runner" }
+thiserror = { workspace = true }

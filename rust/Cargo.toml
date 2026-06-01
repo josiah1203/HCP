@@ -3,6 +3,9 @@ members = [
   "crates/sidecar-protocol",
   "crates/sidecar-runner",
   "crates/hnf-adapter",
+  "crates/kicad-sidecar",
+  "crates/simulation-sidecars",
+  "crates/freecad-sidecar",
 ]
 resolver = "2"
 
