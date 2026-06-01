@@ -1,0 +1,20 @@
+(kicad_sch
+  (version 20230121)
+  (generator "hcp-import-corpus")
+  (uuid 00000000-0000-0000-0000-000000000001)
+  (paper "A4")
+  (symbol
+    (lib_id "Device:R")
+    (at 50 50 0)
+    (unit 1)
+    (property "Reference" "R1")
+    (property "Value" "10k")
+  )
+  (symbol
+    (lib_id "Device:C")
+    (at 80 50 0)
+    (unit 1)
+    (property "Reference" "C1")
+    (property "Value" "100nF")
+  )
+)

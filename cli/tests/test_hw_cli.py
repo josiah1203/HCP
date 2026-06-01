@@ -42,6 +42,50 @@ def test_auth_login_json() -> None:
 
 
 @respx.mock
+def test_import_json() -> None:
+    project_id = str(uuid.uuid4())
+    respx.post(f"{BASE}/v1/projects/{project_id}/import").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "branch_id": str(uuid.uuid4()),
+                "branch_name": "import/kicad/20260101T000000Z",
+                "commit_id": str(uuid.uuid4()),
+                "format": "kicad",
+                "artifacts": [],
+                "metrics": {
+                    "source_elements": 2,
+                    "imported_elements": 2,
+                    "loss_ratio": 0.0,
+                },
+            },
+        )
+    )
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.NamedTemporaryFile(suffix=".kicad_sch", delete=False) as tmp:
+        tmp.write(b"(kicad_sch (version 20230121))")
+        path = tmp.name
+    try:
+        code = main(
+            [
+                "import",
+                "--project-id",
+                project_id,
+                "--format",
+                "kicad",
+                "--file",
+                path,
+                "--json",
+            ]
+        )
+        assert code == 0
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
+@respx.mock
 def test_branch_create_json() -> None:
     project_id = str(uuid.uuid4())
     branch_id = str(uuid.uuid4())
@@ -92,6 +136,41 @@ def test_diff_json() -> None:
             from_id,
             "--to",
             to_id,
+            "--json",
+        ]
+    )
+    assert code == 0
+
+
+@respx.mock
+def test_import_json() -> None:
+    project_id = str(uuid.uuid4())
+    respx.post(f"{BASE}/v1/projects/{project_id}/import").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "branch_id": str(uuid.uuid4()),
+                "branch_name": "import/kicad/20260601T120000Z",
+                "commit_id": str(uuid.uuid4()),
+                "format": "kicad",
+                "artifacts": [],
+                "metrics": {
+                    "source_elements": 2,
+                    "imported_elements": 2,
+                    "loss_ratio": 0.0,
+                },
+            },
+        )
+    )
+    code = main(
+        [
+            "import",
+            "--project-id",
+            project_id,
+            "--format",
+            "kicad",
+            "--file",
+            __file__,
             "--json",
         ]
     )

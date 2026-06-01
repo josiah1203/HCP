@@ -550,3 +550,72 @@ class CrdtOperationResponse(BaseModel):
     operation_id: str
     envelope: dict
     accepted: bool = True
+
+
+class OrgRegisterRequest(BaseModel):
+    org_name: str
+    slug: str | None = None
+    admin_name: str
+    admin_email: str
+    admin_password: str = Field(min_length=8)
+    plan: str = "free"
+
+
+class OrgRegisterResponse(BaseModel):
+    org: dict
+    user: dict
+    access_token: str
+    refresh_token: str | None = None
+    expires_in: int
+    token_type: str = "bearer"
+
+
+class OrgInviteCreate(BaseModel):
+    email: str
+    role: str = "viewer"
+
+
+class OrgInviteCreated(BaseModel):
+    invite_id: uuid.UUID
+    email: str
+    role: str
+    invite_token: str
+    expires_at: datetime
+
+
+class OrgInviteAccept(BaseModel):
+    token: str
+    name: str
+    password: str = Field(min_length=8)
+    email: str | None = None
+
+
+class OrgInviteAcceptResponse(BaseModel):
+    user: dict
+    access_token: str
+    refresh_token: str | None = None
+    expires_in: int
+    token_type: str = "bearer"
+
+
+class ImportArtifactOut(BaseModel):
+    path: str
+    object_id: uuid.UUID
+    version_id: uuid.UUID
+    version_num: int
+    element_count: int = 0
+
+
+class ImportMetricsOut(BaseModel):
+    source_elements: int
+    imported_elements: int
+    loss_ratio: float
+
+
+class ProjectImportResponse(BaseModel):
+    branch_id: uuid.UUID
+    branch_name: str
+    commit_id: uuid.UUID
+    format: str
+    artifacts: list[ImportArtifactOut]
+    metrics: ImportMetricsOut

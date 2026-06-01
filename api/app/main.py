@@ -15,6 +15,7 @@ from app.routers import (
     health,
     hos_version_control,
     objects,
+    orgs,
     parts,
     projects,
     scene,
@@ -28,6 +29,7 @@ app = FastAPI(
     version="1.0.0",
     openapi_tags=[
         {"name": "auth", "description": "JWT and API key authentication"},
+        {"name": "orgs", "description": "Organization registration and invites"},
         {"name": "projects", "description": "Project management"},
         {"name": "objects", "description": "Hardware object storage and lifecycle"},
         {"name": "bom", "description": "Bill of materials"},
@@ -52,6 +54,7 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(orgs.router)
 app.include_router(projects.router)
 app.include_router(objects.router)
 app.include_router(bom.router)

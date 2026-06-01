@@ -702,6 +702,37 @@ class CollaborationPresence(Base):
     )
 
 
+class OrgInvite(Base):
+    __tablename__ = "org_invites"
+    __table_args__ = (
+        UniqueConstraint("org_id", "email", name="org_invites_org_email_unique"),
+        Index("ix_org_invites_token_hash", "token_hash"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orgs.id", ondelete="CASCADE")
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, default="viewer")
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    invited_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    accepted_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class CollaborationSoftLock(Base):
     __tablename__ = "collaboration_soft_locks"
     __table_args__ = (

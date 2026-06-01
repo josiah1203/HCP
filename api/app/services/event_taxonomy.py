@@ -11,6 +11,7 @@ EVENT_LIFECYCLE_TRANSITION = "lifecycle_transition"
 EVENT_PARSE_COMPLETE = "parse_complete"
 EVENT_GRAPH_AUTO_LINK_COMPLETE = "graph_auto_link_complete"
 EVENT_SCENE_GRAPH_SNAPSHOT_CREATED = "scene_graph_snapshot_created"
+EVENT_ARTIFACT_BRANCHED = "artifact.branched"
 
 # Collaboration (Phase 0.5 beta — polling presence, advisory locks)
 EVENT_PRESENCE_HEARTBEAT = "presence_heartbeat"
@@ -30,6 +31,7 @@ CORE_EVENT_TYPES = {
     EVENT_PARSE_COMPLETE,
     EVENT_GRAPH_AUTO_LINK_COMPLETE,
     EVENT_SCENE_GRAPH_SNAPSHOT_CREATED,
+    EVENT_ARTIFACT_BRANCHED,
 }
 
 COLLABORATION_EVENT_TYPES = {

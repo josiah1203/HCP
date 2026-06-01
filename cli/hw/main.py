@@ -110,6 +110,63 @@ def _cmd_diff(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_import(args: argparse.Namespace) -> int:
+    import httpx
+
+    path = Path(args.file)
+    if not path.is_file():
+        raise SystemExit(f"file not found: {path}")
+
+    api_url = os.environ.get("HCP_API_URL", "https://api.hcp.io").rstrip("/")
+    token = os.environ.get("HCP_ACCESS_TOKEN") or os.environ.get("HCP_API_KEY")
+    if not token:
+        raise SystemExit("Set HCP_API_KEY or HCP_ACCESS_TOKEN (or run `hw auth login`).")
+
+    with path.open("rb") as handle:
+        files = {"file": (path.name, handle.read())}
+    data = {"format": args.format}
+    if args.message:
+        data["message"] = args.message
+
+    resp = httpx.post(
+        f"{api_url}/v1/projects/{args.project_id}/import",
+        headers={"Authorization": f"Bearer {token}"},
+        files=files,
+        data=data,
+        timeout=120.0,
+    )
+    if resp.status_code not in (200, 201):
+        raise SystemExit(f"import failed: {resp.status_code} {resp.text}")
+    _emit(resp.json(), as_json=args.json)
+    return 0
+
+
+def _cmd_import(args: argparse.Namespace) -> int:
+    import httpx
+
+    path = Path(args.file)
+    if not path.is_file():
+        raise SystemExit(f"file not found: {path}")
+
+    api_url = os.environ.get("HCP_API_URL", "https://api.hcp.io").rstrip("/")
+    token = os.environ.get("HCP_ACCESS_TOKEN") or os.environ.get("HCP_API_KEY")
+    if not token:
+        raise SystemExit("Set HCP_API_KEY or HCP_ACCESS_TOKEN (or run `hw auth login`).")
+
+    with path.open("rb") as fh:
+        resp = httpx.post(
+            f"{api_url}/v1/projects/{args.project_id}/import",
+            headers={"Authorization": f"Bearer {token}"},
+            data={"format": args.format, "message": args.message or ""},
+            files={"file": (path.name, fh, "application/octet-stream")},
+            timeout=120.0,
+        )
+    if resp.status_code != 201:
+        raise SystemExit(f"import failed: {resp.status_code} {resp.text}")
+    _emit(resp.json(), as_json=args.json)
+    return 0
+
+
 def _cmd_merge(args: argparse.Namespace) -> int:
     return _with_client(
         args,
@@ -189,6 +246,22 @@ def _build_parser() -> argparse.ArgumentParser:
     c_create.add_argument("--parent", action="append", default=None)
     _add_json_flag(c_create)
     c_create.set_defaults(_fn=_cmd_commit_create)
+
+    imp = sub.add_parser("import", help="Import design archive into project")
+    imp.add_argument("--project-id", required=True)
+    imp.add_argument("--format", required=True, help="Import format (e.g. kicad)")
+    imp.add_argument("--file", required=True, help="Source file or .zip archive")
+    imp.add_argument("--message", default=None, help="Optional commit message")
+    _add_json_flag(imp)
+    imp.set_defaults(_fn=_cmd_import)
+
+    imp = sub.add_parser("import", help="Import design archive into project")
+    imp.add_argument("--project-id", required=True)
+    imp.add_argument("--format", required=True, help="Import format (e.g. kicad)")
+    imp.add_argument("--file", required=True, help="Source file or .zip archive")
+    imp.add_argument("--message", default=None, help="Optional commit message")
+    _add_json_flag(imp)
+    imp.set_defaults(_fn=_cmd_import)
 
     diff = sub.add_parser("diff", help="Diff two commits")
     diff.add_argument("--project-id", required=True)
