@@ -36,3 +36,7 @@ dist/
 
 # Local data
 minio-data/
+
+# Rust / regression artifacts
+rust/target/
+out/
