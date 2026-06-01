@@ -1,4 +1,4 @@
-# Fork regression harness (skeleton)
+# Fork regression harness
 
 This doc describes the **required regression suite categories** for forked CAD sidecars (KiCad/FreeCAD) and how to run them locally and in CI.
 
@@ -51,7 +51,7 @@ Goal: simulation results are stable across versions for known-good inputs.
 ## Harness interfaces (this repo)
 
 - `scripts/regression/run_suite.py`: uniform CLI wrapper for running a suite.
-- `scripts/regression/suites/*.py`: suite drivers (thin adapters).
+- `scripts/regression/{roundtrip,drc,simulation_stability,mutation_hook}.py`: suite drivers.
 - `docs/protocol/jsonrpc/*.json`: protocol contracts that suites can validate against.
 
 ## Example commands
@@ -76,11 +76,38 @@ python3 scripts/regression/run_suite.py mutation-hook \
   --out out/regression/mutation_hook.json
 ```
 
-### Other suites (skeleton)
+### Roundtrip (best-effort)
+
+Export fingerprint stability + re-apply mutations (KiCad scene graph). Uses bundled corpus by default:
 
 ```bash
-python3 scripts/regression/run_suite.py roundtrip --corpus path/to/corpus
-python3 scripts/regression/run_suite.py drc --corpus path/to/corpus --goldens path/to/goldens
-python3 scripts/regression/run_suite.py simulation-stability --corpus path/to/corpus --goldens path/to/goldens
+python3 scripts/regression/run_suite.py roundtrip \
+  --corpus scripts/regression/fixtures/roundtrip_corpus
 ```
+
+Driver: `scripts/regression/roundtrip.py`.
+
+### DRC (best-effort)
+
+Derives normalized violations from KiCad pcb mutation scene traces; compares to goldens. With `HCP_USE_HOST_OSS=1`, extend to call host DRC when subprocess bindings land.
+
+```bash
+python3 scripts/regression/run_suite.py drc \
+  --corpus scripts/regression/fixtures/drc_corpus \
+  --goldens scripts/regression/fixtures/drc_goldens
+```
+
+Driver: `scripts/regression/drc.py`.
+
+### Simulation stability
+
+Runs stub (or configured) simulation subprocesses and compares normalized envelopes to goldens:
+
+```bash
+python3 scripts/regression/run_suite.py simulation-stability \
+  --corpus scripts/regression/fixtures/sim_corpus \
+  --goldens scripts/regression/fixtures/sim_goldens
+```
+
+Driver: `scripts/regression/simulation_stability.py`.
 

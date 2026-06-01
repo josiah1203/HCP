@@ -21,6 +21,7 @@ Canonical engineering spec: `~/.cursor/HCP.md`. Detailed sidecar port plan: `.cu
 | Event stream | `api/app/services/events.py`, `api/tests/test_events.py` | Integrated |
 | Rust sidecars (protocol, runner, KiCad/FreeCAD/sim stubs) | `rust/crates/*` | Integrated |
 | Mutation-hook regression driver | `scripts/regression/run_suite.py`, `scripts/regression/mutation_hook.py` | Integrated |
+| Roundtrip / DRC / simulation-stability regression | `scripts/regression/roundtrip.py`, `drc.py`, `simulation_stability.py` | Integrated (best-effort; stub sidecars) |
 | `hw` CLI (login, branches, commits, merge, conflicts) | `cli/hw/` | Integrated |
 
 ## Phase 0.5 completion (audit estimate)
@@ -37,14 +38,67 @@ Canonical engineering spec: `~/.cursor/HCP.md`. Detailed sidecar port plan: `.cu
 | Org signup / invite / roles E2E | **Partial** — org-scoped RBAC in API; no signup/invite flow |
 | Cloud durability confirmed + DR runbook tested | **Docs only** — see DURABILITY_BETA.md |
 | Billing, ToS, privacy, status page | **Out of repo** |
-| Public roadmap published | **Stub** — PUBLIC_ROADMAP.md |
+| Public roadmap published | **Expanded** — PUBLIC_ROADMAP.md |
+| Legal / status page | **Stubs** — docs/legal/PLACEHOLDER.md, docs/ops/STATUS_PAGE.md |
+| Collaboration stress (2-user soak) | **Documented** — see below |
 | Two-week stable internal alpha | **Process** — not verifiable from git |
+
+## Collaboration stress gate (C3 — soak test)
+
+Phase 0.5 requires evidence that **two concurrent users** can share presence and locks without wedging the API. Full 4-hour wall-clock soaks are optional for CI; use an **accelerated soak** with equivalent RPC volume.
+
+### Pass criteria
+
+| Check | Threshold |
+|-------|-----------|
+| Presence heartbeat success rate | ≥ 99% over soak window |
+| Lock acquire / release pairs | 100% paired (no orphaned locks in DB) |
+| Conflict rate | Documented; no unhandled 5xx |
+| API p99 (presence + lock endpoints) | &lt; 500 ms on staging hardware |
+
+### Accelerated soak script (manual / staging)
+
+Run against a staging API with two test users (`user-a`, `user-b`) and a shared `projectId`:
+
+```bash
+# Terminal A — user A presence + lock cycle (repeat for N minutes or use `watch`)
+export HCP_API_URL=https://staging.example HCP_TOKEN_A=... PROJECT_ID=...
+
+for i in $(seq 1 1200); do
+  curl -sf -X POST "$HCP_API_URL/v1/collaboration/presence" \
+    -H "Authorization: Bearer $HCP_TOKEN_A" \
+    -H "Content-Type: application/json" \
+    -d "{\"projectId\":\"$PROJECT_ID\",\"status\":\"active\"}" >/dev/null
+  curl -sf -X POST "$HCP_API_URL/v1/collaboration/locks" \
+    -H "Authorization: Bearer $HCP_TOKEN_A" \
+    -H "Content-Type: application/json" \
+    -d "{\"projectId\":\"$PROJECT_ID\",\"resourceId\":\"doc/main\",\"ttlSeconds\":30}" >/dev/null
+  sleep 2
+done
+```
+
+```bash
+# Terminal B — user B (offset timing to maximize overlap)
+export HCP_TOKEN_B=...
+# Same loop with TOKEN_B; alternate resourceId every 10 iterations to test contention
+```
+
+**Record:** start/end time, request count, failures from logs, and Postgres row count for `collaboration_locks` (should return to zero after releases). Attach summary to the Phase 0.5 sign-off PR.
+
+**Python helper (accelerated):** `scripts/collaboration_soak.py` — same endpoints with configurable `--iterations` and p95 check:
+
+```bash
+export HCP_API_URL=http://localhost:8000 HCP_PROJECT_ID=<uuid> HCP_TOKEN=dev-token
+python3 scripts/collaboration_soak.py --iterations 120 --interval-s 1 --p95-limit-ms 500
+```
+
+k6/Locust scripts under `scripts/load/` may replace the shell loop later; until then use the helper or the curl procedure above.
 
 ## Out of scope for Phase 0.5
 
 - Runnable Rust IDE shell (host uses JSON-RPC contracts in `docs/protocol/jsonrpc/`)
-- Full roundtrip / DRC / simulation-stability regression drivers (harness stubs remain)
 - Production deployment hardening beyond existing Terraform/Helm scaffolding
+- Hosted status page and counsel-approved ToS (tracked via ops stubs; external publish required)
 
 ## Verify locally
 
@@ -66,10 +120,18 @@ PYTHONPATH=api:.. python3 -m pytest \
 # CLI + regression unit tests
 PYTHONPATH=api:.. python3 -m pytest cli/tests scripts/regression/tests -q
 
-# Optional: mutation-hook suite (builds sidecars first)
+# Regression suites (roundtrip / drc / sim use bundled fixtures)
 python3 scripts/regression/run_suite.py mutation-hook \
   --seed scripts/regression/fixtures/minimal_seed.json \
   --mutations 4
+python3 scripts/regression/run_suite.py roundtrip \
+  --corpus scripts/regression/fixtures/roundtrip_corpus
+python3 scripts/regression/run_suite.py drc \
+  --corpus scripts/regression/fixtures/drc_corpus \
+  --goldens scripts/regression/fixtures/drc_goldens
+python3 scripts/regression/run_suite.py simulation-stability \
+  --corpus scripts/regression/fixtures/sim_corpus \
+  --goldens scripts/regression/fixtures/sim_goldens
 ```
 
 ## Repository

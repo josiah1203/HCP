@@ -26,11 +26,19 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def run_roundtrip(args: argparse.Namespace) -> SuiteResult:
-    # Placeholder: sidecar invocation + HOS upload goes here.
+    from roundtrip import run_roundtrip_suite
+
+    trace = run_roundtrip_suite(corpus=Path(args.corpus))
+    trace_path = Path(args.out).with_name("roundtrip_trace.json")
+    _write_json(trace_path, trace)
     return SuiteResult(
         suite="roundtrip",
-        ok=True,
-        details={"note": "skeleton only", "corpus": args.corpus},
+        ok=bool(trace.get("ok")),
+        details={
+            "corpus": args.corpus,
+            "tracePath": str(trace_path),
+            "cases": [c.get("id") for c in trace.get("cases", [])],
+        },
     )
 
 
@@ -58,20 +66,41 @@ def run_mutation_hook(args: argparse.Namespace) -> SuiteResult:
 
 
 def run_drc(args: argparse.Namespace) -> SuiteResult:
-    # Placeholder: sidecar-specific DRC invocation + normalization + golden comparison.
+    from drc import run_drc_suite
+
+    trace = run_drc_suite(corpus=Path(args.corpus), goldens=Path(args.goldens))
+    trace_path = Path(args.out).with_name("drc_trace.json")
+    _write_json(trace_path, trace)
     return SuiteResult(
         suite="drc",
-        ok=True,
-        details={"note": "skeleton only", "corpus": args.corpus, "goldens": args.goldens},
+        ok=bool(trace.get("ok")),
+        details={
+            "corpus": args.corpus,
+            "goldens": args.goldens,
+            "tracePath": str(trace_path),
+            "cases": [c.get("id") for c in trace.get("cases", [])],
+        },
     )
 
 
 def run_simulation_stability(args: argparse.Namespace) -> SuiteResult:
-    # Placeholder: simulation dispatcher integration + tolerance comparison.
+    from simulation_stability import run_simulation_stability_suite
+
+    trace = run_simulation_stability_suite(
+        corpus=Path(args.corpus),
+        goldens=Path(args.goldens),
+    )
+    trace_path = Path(args.out).with_name("simulation_stability_trace.json")
+    _write_json(trace_path, trace)
     return SuiteResult(
         suite="simulation-stability",
-        ok=True,
-        details={"note": "skeleton only", "corpus": args.corpus, "goldens": args.goldens},
+        ok=bool(trace.get("ok")),
+        details={
+            "corpus": args.corpus,
+            "goldens": args.goldens,
+            "tracePath": str(trace_path),
+            "cases": [c.get("id") for c in trace.get("cases", [])],
+        },
     )
 
 
